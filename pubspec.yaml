@@ -1,0 +1,22 @@
+name: remote_racket_score
+description: Placar automatizado e Juiz de Cadeira virtual para Tênis, Padel e Beach Tennis com controle Bluetooth e TTS.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.4.9
+  flutter_tts: ^4.2.5
+  shared_preferences: ^2.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
