@@ -21,7 +21,7 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
   final FocusNode _focusNode = FocusNode();
   
   StreamSubscription<double>? _volSub;
-  double _currentVol = 0.5;
+  double _baseVol = 0.5;
 
   void _assignKey(int keyId, MappedAction action) {
     final current = ref.read(buttonMappingProvider).valueOrNull ?? const ButtonMapping();
@@ -94,19 +94,33 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
     super.initState();
     ref.read(keyEventServiceProvider).stopListening(); 
     
-    // ARMADILHA DE VOLUME: Se o Android roubar o botão, a gente pega ele pela mudança de volume!
-    PerfectVolumeControl.getVolume().then((v) => _currentVol = v);
+    // Pega o volume real do usuário para a tela de mapeamento
+    PerfectVolumeControl.getVolume().then((v) {
+      _baseVol = v;
+      // Impede volume mudo na gravação
+      if (_baseVol < 0.2) {
+        _baseVol = 0.5;
+        PerfectVolumeControl.setVolume(_baseVol);
+      }
+    });
+    
     _volSub = PerfectVolumeControl.stream.listen((v) {
+      if ((v - _baseVol).abs() < 0.01) return; // Ignora flutuações irreais
+      
       if (_waitingFor != null) {
-        if (v > _currentVol) { // Aumentou
+        if (v > _baseVol) { 
           _assignKey(LogicalKeyboardKey.audioVolumeUp.keyId, _waitingFor!);
           setState(() => _waitingFor = null);
-        } else if (v < _currentVol) { // Diminuiu
+        } else if (v < _baseVol) { 
           _assignKey(LogicalKeyboardKey.audioVolumeDown.keyId, _waitingFor!);
           setState(() => _waitingFor = null);
         }
       }
-      _currentVol = v;
+      
+      // Devolve para a âncora original
+      Future.delayed(const Duration(milliseconds: 100), () {
+        PerfectVolumeControl.setVolume(_baseVol);
+      });
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -118,6 +132,10 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
   void dispose() {
     _volSub?.cancel();
     _focusNode.dispose();
+    
+    // Liga o motor do jogo de volta ao fechar esta tela!
+    ref.read(keyEventServiceProvider).startListening();
+    
     super.dispose();
   }
 
@@ -126,13 +144,13 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
     final mappingAsync = ref.watch(buttonMappingProvider);
     final mapping = mappingAsync.valueOrNull ?? const ButtonMapping();
 
-    return Focus( // Focus é mais agressivo que o RawKeyboardListener para botões de mídia
+    return Focus( // Focus captura botões de mídia (Avançar/Voltar) nativamente
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: (node, event) {
         if (_waitingFor != null && (event is KeyDownEvent || event is KeyUpEvent)) {
           final keyId = event.logicalKey.keyId;
-          if (keyId != 0) { // Ignora sinais vazios do Android
+          if (keyId != 0) { 
             _assignKey(keyId, _waitingFor!);
             setState(() => _waitingFor = null);
             return KeyEventResult.handled;
@@ -261,7 +279,7 @@ class _MappingTile extends StatelessWidget {
                         children: [
                           Radio<MappedAction?>(
                             value: option.value, groupValue: currentDoubleClick, onChanged: onDoubleClickChanged, activeColor: neonColor,
-                            fillColor: MaterialStateProperty.resolveWith<Color>((states) => states.contains(MaterialState.selected) ? neonColor : AppTheme.onSurface.withOpacity(0.5)),
+                            fillColor: WidgetStateProperty.resolveWith<Color>((states) => states.contains(WidgetState.selected) ? neonColor : AppTheme.onSurface.withOpacity(0.5)),
                           ),
                           Text(option.label, style: const TextStyle(color: AppTheme.onSurface, fontSize: 13)),
                           const SizedBox(width: 8),
@@ -281,7 +299,7 @@ class _MappingTile extends StatelessWidget {
                         children: [
                           Radio<MappedAction?>(
                             value: option.value, groupValue: currentTripleClick, onChanged: onTripleClickChanged, activeColor: neonColor,
-                            fillColor: MaterialStateProperty.resolveWith<Color>((states) => states.contains(MaterialState.selected) ? neonColor : AppTheme.onSurface.withOpacity(0.5)),
+                            fillColor: WidgetStateProperty.resolveWith<Color>((states) => states.contains(WidgetState.selected) ? neonColor : AppTheme.onSurface.withOpacity(0.5)),
                           ),
                           Text(option.label, style: const TextStyle(color: AppTheme.onSurface, fontSize: 13)),
                           const SizedBox(width: 8),

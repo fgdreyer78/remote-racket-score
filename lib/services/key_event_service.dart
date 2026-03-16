@@ -19,7 +19,12 @@ class KeyEventService {
   int _clickCount = 0;
   MappedAction? _pendingAction;
   StreamSubscription<double>? _volumeSub;
-  double _baseVol = 0.5;
+  
+  double _currentVol = 0.5;
+  
+  // VARIÁVEIS DO ESCUDO ANTI-DUPLICIDADE
+  int? _lastProcessedKeyId;
+  int _lastProcessedTime = 0;
 
   Future<void> startListening() async {
     HardwareKeyboard.instance.addHandler(_handler);
@@ -27,16 +32,27 @@ class KeyEventService {
     if (lockVolume) {
       try {
         PerfectVolumeControl.hideUI = true;
-        _baseVol = await PerfectVolumeControl.getVolume();
+        _currentVol = await PerfectVolumeControl.getVolume();
+        
         _volumeSub = PerfectVolumeControl.stream.listen((v) {
-          if (v != _baseVol) {
-            // Se o Android roubou o botão e alterou o volume, nós geramos o clique falso!
-            final keyId = v > _baseVol 
-                ? LogicalKeyboardKey.audioVolumeUp.keyId 
-                : LogicalKeyboardKey.audioVolumeDown.keyId;
-                
-            _processKeyId(keyId);
-            PerfectVolumeControl.setVolume(_baseVol); // Trava o volume de volta no lugar
+          // Só processa se o volume realmente tiver mudado
+          if (v > _currentVol) {
+            _processKeyId(LogicalKeyboardKey.audioVolumeUp.keyId);
+          } else if (v < _currentVol) {
+            _processKeyId(LogicalKeyboardKey.audioVolumeDown.keyId);
+          } else {
+            return; // Ignora se o som for igual
+          }
+          
+          _currentVol = v; // Atualiza a memória
+          
+          // PROTEÇÃO DE BORDA: Deixa o fone trabalhar livremente, 
+          // só puxa pro meio se bater nas pontas (< 15% ou > 85%)
+          if (_currentVol <= 0.15 || _currentVol >= 0.85) {
+            Future.delayed(const Duration(milliseconds: 300), () {
+              PerfectVolumeControl.setVolume(0.5);
+              _currentVol = 0.5;
+            });
           }
         });
       } catch (e) {}
@@ -61,13 +77,20 @@ class KeyEventService {
 
   bool _handler(KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyUpEvent) return false;
-    if (event is KeyUpEvent) return false; // Ignoramos a soltura aqui para não contar duplo
-
+    if (event is KeyUpEvent) return false; 
     return _processKeyId(event.logicalKey.keyId);
   }
 
-  // Lógica principal isolada para poder ser chamada pelo teclado OU pelo volume
   bool _processKeyId(int keyId) {
+    // ESCUDO ANTI-DUPLICIDADE (150ms)
+    // Se o teclado e o som dispararem a mesma tecla juntos, ignora o clone.
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (keyId == _lastProcessedKeyId && (now - _lastProcessedTime) < 150) {
+      return false; 
+    }
+    _lastProcessedKeyId = keyId;
+    _lastProcessedTime = now;
+
     MappedAction? action;
     MappedAction? dcTarget;
     MappedAction? tcTarget;
@@ -101,7 +124,6 @@ class KeyEventService {
       _pendingAction = action;
 
       _clickTimer?.cancel();
-      // Temporizador de 900ms ajustado por você!
       _clickTimer = Timer(const Duration(milliseconds: 900), () {
         if (_clickCount == 1) {
           onMappedAction?.call(_pendingAction!);
