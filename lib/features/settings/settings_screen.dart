@@ -31,6 +31,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late int _breakBetweenGamesSeconds;
   late int _breakBetweenSetsSeconds;
   late bool _timeWarningSound;
+  late bool _lockVolumeButtons;
+  late String _audioOutput;
 
   @override
   void initState() {
@@ -52,6 +54,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _breakBetweenGamesSeconds = 0;
     _breakBetweenSetsSeconds = 0;
     _timeWarningSound = true;
+    _lockVolumeButtons = true;
+    _audioOutput = 'speaker';
   }
 
   bool _formInitialized = false;
@@ -78,6 +82,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _breakBetweenGamesSeconds = config.breakBetweenGamesSeconds;
       _breakBetweenSetsSeconds = config.breakBetweenSetsSeconds;
       _timeWarningSound = config.timeWarningSound;
+      _lockVolumeButtons = config.lockVolumeButtons;
+      _audioOutput = config.audioOutput;
     });
   }
 
@@ -162,27 +168,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onChanged: (v) => setState(() => _useFinalSetTiebreak = v),
             activeColor: AppTheme.primary,
           ),
-          _numberField('Pontos do tiebreak decisivo', _finalSetTiebreakPoints, (v) => _finalSetTiebreakPoints = v),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
+          const Text(
+            'Controles de hardware', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
           SwitchListTile(
-            title: const Text('Jogo com vantagem (sem no-ad)', style: TextStyle(color: AppTheme.onSurface)),
-            value: _withAdvantage,
-            onChanged: (v) => setState(() => _withAdvantage = v),
+            title: const Text('Bloquear botões de volume', style: TextStyle(color: AppTheme.onSurface)),
+            value: _lockVolumeButtons,
+            onChanged: (v) => setState(() => _lockVolumeButtons = v),
             activeColor: AppTheme.primary,
           ),
           const SizedBox(height: 16),
-          const Text('Tempo de saque e intervalos', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
-          _numberField('Tempo de saque após o ponto (segundos)', _serveClockSeconds, (v) => _serveClockSeconds = v, min: 0),
-          _numberField('Tempo entre games (segundos)', _breakBetweenGamesSeconds, (v) => _breakBetweenGamesSeconds = v, min: 0),
-          _numberField('Tempo entre sets (segundos)', _breakBetweenSetsSeconds, (v) => _breakBetweenSetsSeconds = v, min: 0),
-          SwitchListTile(
-            title: const Text('Aviso sonoro ao fim do tempo (TIME / Táim)', style: TextStyle(color: AppTheme.onSurface)),
-            value: _timeWarningSound,
-            onChanged: (v) => setState(() => _timeWarningSound = v),
-            activeColor: AppTheme.primary,
+          const Text('Saída de áudio do TTS', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _audioOutput,
+            dropdownColor: AppTheme.surfaceVariant,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: 'speaker',
+                child: Text('Alto-falante do aparelho'),
+              ),
+              DropdownMenuItem(
+                value: 'bluetooth',
+                child: Text('Dispositivo Bluetooth (fone/caixa)'),
+              ),
+              DropdownMenuItem(
+                value: 'headphones',
+                child: Text('Fone de ouvido (cabo)'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _audioOutput = value;
+              });
+            },
           ),
           const SizedBox(height: 16),
-          const Text('Idioma', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Idioma', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             value: _ttsLanguage,
@@ -215,7 +242,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               foregroundColor: AppTheme.onPrimary,
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
-            child: const Text('Salvar configurações', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text("Salvar configurações", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -279,6 +306,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _breakBetweenGamesSeconds = config.breakBetweenGamesSeconds;
       _breakBetweenSetsSeconds = config.breakBetweenSetsSeconds;
       _timeWarningSound = config.timeWarningSound;
+      _lockVolumeButtons = config.lockVolumeButtons;
+      _audioOutput = config.audioOutput;
       _formKey++;
     });
   }
@@ -335,6 +364,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       breakBetweenGamesSeconds: _breakBetweenGamesSeconds,
       breakBetweenSetsSeconds: _breakBetweenSetsSeconds,
       timeWarningSound: _timeWarningSound,
+      lockVolumeButtons: _lockVolumeButtons,
+      audioOutput: _audioOutput,
     );
     ref.read(gameConfigProvider.notifier).updateConfig(config);
     ref.read(gamePresetsProvider.notifier).savePreset(name, config);
