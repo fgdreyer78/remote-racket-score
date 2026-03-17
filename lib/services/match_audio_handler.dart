@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
-import 'package:audio_session/audio_session.dart'; 
+import 'package:audio_session/audio_session.dart';
+import 'package:just_audio/just_audio.dart'; // PACOTE NOVO: O nosso player "laranja"!
 
 enum MediaCommand { next, previous, play, pause }
 
@@ -8,6 +9,10 @@ late MatchAudioHandler globalAudioHandler;
 
 class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
   final _commandController = StreamController<MediaCommand>.broadcast();
+  
+  // O NOSSO "LARANJA": Um player real, mas que fica mudo. 
+  // Isso obriga o Android a respeitar o nosso sequestro de Bluetooth!
+  final _player = AudioPlayer(); 
 
   Stream<MediaCommand> get commandStream => _commandController.stream;
 
@@ -16,11 +21,9 @@ class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   Future<void> _init() async {
-    // 1. ROUBA O FOCO DE ÁUDIO DO ANDROID (Tira do Spotify/YouTube)
+    // 1. Configura a sessão de áudio para música
     final session = await AudioSession.instance;
-    // CORREÇÃO: A palavra certa é music(), e tiramos o const pra não dar erro de versão!
     await session.configure(AudioSessionConfiguration.music());
-    await session.setActive(true);
 
     // 2. Cria a notificação de mídia
     mediaItem.add(const MediaItem(
@@ -30,17 +33,26 @@ class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
       artist: 'Controle os pontos pelo fone/relógio',
     ));
 
-    // 3. Avisa quais botões queremos sequestrar
+    // 3. A CHAVE MESTRA DO BLUETOOTH: systemActions!
+    // Sem isso, o Android bloqueia os cliques do fone.
     playbackState.add(playbackState.value.copyWith(
       controls: [
         MediaControl.skipToPrevious,
-        MediaControl.play, 
-        MediaControl.pause,
+        MediaControl.play,
         MediaControl.skipToNext,
       ],
+      systemActions: const {
+        MediaAction.skipToNext,
+        MediaAction.skipToPrevious,
+        MediaAction.play,
+        MediaAction.pause,
+      },
       processingState: AudioProcessingState.ready,
-      playing: true, 
+      playing: true,
     ));
+
+    // Força o Android a nos dar o foco ativando a sessão
+    await session.setActive(true);
   }
 
   @override
@@ -56,12 +68,13 @@ class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> play() async {
     _commandController.add(MediaCommand.play);
+    // Mantemos como playing: true para o Android não matar o app
     playbackState.add(playbackState.value.copyWith(playing: true));
   }
 
   @override
   Future<void> pause() async {
     _commandController.add(MediaCommand.pause);
-    playbackState.add(playbackState.value.copyWith(playing: false));
+    playbackState.add(playbackState.value.copyWith(playing: true)); 
   }
 }
