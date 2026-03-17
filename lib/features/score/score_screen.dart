@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_theme.dart';
-import '../../features/score/scoring_engine.dart'; // Mantido caso outras partes precisem
 import '../../models/button_mapping.dart';
 import '../../models/game_config.dart';
 import '../../models/score_state.dart';
@@ -30,38 +29,8 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   Timer? _clockTimer;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _attachKeyListener());
-  }
-
-  void _attachKeyListener() {
-    final keyService = ref.read(keyEventServiceProvider);
-    keyService.updateMapping(
-      ref.read(buttonMappingProvider).valueOrNull ?? const ButtonMapping(),
-    );
-    keyService.onMappedAction = (action) {
-      final notifier = ref.read(scoreStateProvider.notifier);
-      switch (action) {
-        case MappedAction.pointA:
-          notifier.addPointA();
-          break;
-        case MappedAction.pointB:
-          notifier.addPointB();
-          break;
-        case MappedAction.undo:
-          notifier.undo();
-          break;
-      }
-    };
-    keyService.startListening();
-  }
-
-  @override
   void dispose() {
     _clockTimer?.cancel();
-    ref.read(keyEventServiceProvider).stopListening();
-    ref.read(keyEventServiceProvider).onMappedAction = null;
     super.dispose();
   }
 
@@ -92,11 +61,15 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Garante que o nosso motor em segundo plano está vivo e rodando!
+    ref.watch(keyEventServiceProvider);
+    
     ref.listen<AsyncValue<ButtonMapping>>(buttonMappingProvider, (prev, next) {
       next.whenData((mapping) {
         ref.read(keyEventServiceProvider).updateMapping(mapping);
       });
     });
+    
     final score = ref.watch(scoreStateProvider);
     final configAsync = ref.watch(gameConfigProvider);
     final config = configAsync.valueOrNull;
@@ -108,7 +81,6 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       final pointAdded = next.pointsA != prev.pointsA || next.pointsB != prev.pointsB ||
           next.tiebreakPointsA != prev.tiebreakPointsA || next.tiebreakPointsB != prev.tiebreakPointsB;
       
-      // BUG 4 FIX: Inteligência do Descanso (Ímpares, exceto o primeiro game)
       final totalGames = next.gamesA + next.gamesB;
       final isOddGame = totalGames % 2 != 0;
       final isFirstGame = totalGames == 1;
@@ -240,7 +212,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     );
   }
 
-Future<void> _confirmReset(BuildContext context) async {
+  Future<void> _confirmReset(BuildContext context) async {
     final shouldReset = await showDialog<bool>(
           context: context,
           builder: (context) {
@@ -248,7 +220,7 @@ Future<void> _confirmReset(BuildContext context) async {
               backgroundColor: AppTheme.surfaceVariant,
               title: const Text(
                 'Nova partida',
-                style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold), // COR NEON APLICADA AQUI
+                style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold), 
               ),
               content: const Text(
                 'Tem certeza que deseja resetar o placar e iniciar uma nova partida?',
@@ -299,7 +271,7 @@ Future<void> _confirmReset(BuildContext context) async {
           backgroundColor: AppTheme.surfaceVariant,
           title: const Text(
             'Coin toss',
-            style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold), // COR NEON APLICADA AQUI
+            style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold), 
           ),
           content: Text(
             '$winnerName ganhou o sorteio.\nEscolha se vai sacar ou receber primeiro.',
@@ -389,19 +361,10 @@ class _ScoreContent extends StatelessWidget {
       }
     }
 
-    // --- NOVA LÓGICA DE EXIBIÇÃO VISUAL ---
-    // 1. Identifica se estamos jogando um Super Tiebreak
     bool isMatchTiebreak = score.isTiebreak && score.gamesA == 0 && score.gamesB == 0;
-
-    // 2. Só exibe GAMES se: o jogo NÃO acabou E não for Super Tiebreak E tiver jogo rolando
     final bool hasGames = !score.matchOver && !isMatchTiebreak && (score.gamesA > 0 || score.gamesB > 0 || score.setsA > 0 || score.setsB > 0);
-    
-    // 3. Só exibe PONTOS se: o jogo NÃO acabou E alguém pontuou
     final bool hasPoints = !score.matchOver && (pA != '0' || pB != '0');
-    
-    // 4. Os SETS fechados continuam aparecendo sempre que houver algum
     final bool hasSets = score.setsA > 0 || score.setsB > 0;
-    // --------------------------------------
 
     const neonColor = Color(0xFFCCFF00); 
     const whiteColor = Colors.white; 

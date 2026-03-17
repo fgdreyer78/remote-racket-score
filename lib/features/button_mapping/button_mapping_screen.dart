@@ -6,6 +6,7 @@ import '../../core/app_theme.dart';
 import '../../models/button_mapping.dart';
 import '../../providers/button_mapping_provider.dart';
 import '../../providers/key_event_provider.dart';
+import '../../services/key_event_service.dart';
 
 class ButtonMappingScreen extends ConsumerStatefulWidget {
   const ButtonMappingScreen({super.key});
@@ -17,6 +18,9 @@ class ButtonMappingScreen extends ConsumerStatefulWidget {
 class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
   MappedAction? _waitingFor;
   final FocusNode _focusNode = FocusNode();
+  
+  // A SOLUÇÃO: Guardamos o motor aqui para usá-lo na hora de fechar a tela!
+  late final KeyEventService _keyService;
 
   void _assignKey(int keyId, MappedAction action) {
     final current = ref.read(buttonMappingProvider).valueOrNull ?? const ButtonMapping();
@@ -87,7 +91,9 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
   @override
   void initState() {
     super.initState();
-    ref.read(keyEventServiceProvider).stopListening(); 
+    // Guardamos o motor e pausamos ele de forma segura
+    _keyService = ref.read(keyEventServiceProvider);
+    _keyService.stopListening(); 
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus(); 
@@ -97,7 +103,8 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
   @override
   void dispose() {
     _focusNode.dispose();
-    ref.read(keyEventServiceProvider).startListening();
+    // Ligamos o motor de volta perfeitamente, sem crasher o aplicativo!
+    _keyService.startListening();
     super.dispose();
   }
 

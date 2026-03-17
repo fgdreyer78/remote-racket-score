@@ -1,29 +1,36 @@
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
+import 'package:audio_session/audio_session.dart'; 
 
-// Este enum vai traduzir os botões do fone/relógio para o nosso app
 enum MediaCommand { next, previous, play, pause }
 
-// Nossa variável global para acessarmos o controle de qualquer lugar
 late MatchAudioHandler globalAudioHandler;
 
 class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
   final _commandController = StreamController<MediaCommand>.broadcast();
 
-  // O nosso app vai escutar esse stream para saber quando o usuário apertou um botão
   Stream<MediaCommand> get commandStream => _commandController.stream;
 
   MatchAudioHandler() {
-    // Avisa o sistema (Android/iOS) que estamos "tocando" algo
-    // Isso vai aparecer na tela de bloqueio do celular e no Smartwatch!
+    _init();
+  }
+
+  Future<void> _init() async {
+    // 1. ROUBA O FOCO DE ÁUDIO DO ANDROID (Tira do Spotify/YouTube)
+    final session = await AudioSession.instance;
+    // CORREÇÃO: A palavra certa é music(), e tiramos o const pra não dar erro de versão!
+    await session.configure(AudioSessionConfiguration.music());
+    await session.setActive(true);
+
+    // 2. Cria a notificação de mídia
     mediaItem.add(const MediaItem(
       id: 'placar_id',
-      album: 'Placar Esportivo',
+      album: 'Remote Racket Score',
       title: 'Partida em Andamento',
-      artist: 'Controle os pontos pelo relógio',
+      artist: 'Controle os pontos pelo fone/relógio',
     ));
 
-    // Avisa ao sistema quais botões nós queremos sequestrar (Avançar e Retroceder)
+    // 3. Avisa quais botões queremos sequestrar
     playbackState.add(playbackState.value.copyWith(
       controls: [
         MediaControl.skipToPrevious,
@@ -32,30 +39,26 @@ class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
         MediaControl.skipToNext,
       ],
       processingState: AudioProcessingState.ready,
-      playing: true, // Finge que está tocando para o sistema não matar o app
+      playing: true, 
     ));
   }
 
-  // Quando o usuário aperta "Avançar Trilha" (ex: duplo toque no fone ou botão do smartwatch)
   @override
   Future<void> skipToNext() async {
     _commandController.add(MediaCommand.next);
   }
 
-  // Quando o usuário aperta "Voltar Trilha"
   @override
   Future<void> skipToPrevious() async {
     _commandController.add(MediaCommand.previous);
   }
 
-  // Quando o usuário aperta "Play"
   @override
   Future<void> play() async {
     _commandController.add(MediaCommand.play);
     playbackState.add(playbackState.value.copyWith(playing: true));
   }
 
-  // Quando o usuário aperta "Pause"
   @override
   Future<void> pause() async {
     _commandController.add(MediaCommand.pause);
