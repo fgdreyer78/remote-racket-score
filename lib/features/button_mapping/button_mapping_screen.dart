@@ -21,7 +21,7 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
   final FocusNode _focusNode = FocusNode();
   
   StreamSubscription<double>? _volSub;
-  double _baseVol = 0.5;
+  double _currentVol = 0.5;
 
   void _assignKey(int keyId, MappedAction action) {
     final current = ref.read(buttonMappingProvider).valueOrNull ?? const ButtonMapping();
@@ -94,33 +94,35 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
     super.initState();
     ref.read(keyEventServiceProvider).stopListening(); 
     
-    // Pega o volume real do usuário para a tela de mapeamento
     PerfectVolumeControl.getVolume().then((v) {
-      _baseVol = v;
-      // Impede volume mudo na gravação
-      if (_baseVol < 0.2) {
-        _baseVol = 0.5;
-        PerfectVolumeControl.setVolume(_baseVol);
+      _currentVol = v;
+      if (_currentVol < 0.2) {
+        _currentVol = 0.5;
+        PerfectVolumeControl.setVolume(_currentVol);
       }
     });
     
     _volSub = PerfectVolumeControl.stream.listen((v) {
-      if ((v - _baseVol).abs() < 0.01) return; // Ignora flutuações irreais
+      if ((v - _currentVol).abs() < 0.001) return; 
       
       if (_waitingFor != null) {
-        if (v > _baseVol) { 
+        if (v > _currentVol) { 
           _assignKey(LogicalKeyboardKey.audioVolumeUp.keyId, _waitingFor!);
           setState(() => _waitingFor = null);
-        } else if (v < _baseVol) { 
+        } else if (v < _currentVol) { 
           _assignKey(LogicalKeyboardKey.audioVolumeDown.keyId, _waitingFor!);
           setState(() => _waitingFor = null);
         }
       }
       
-      // Devolve para a âncora original
-      Future.delayed(const Duration(milliseconds: 100), () {
-        PerfectVolumeControl.setVolume(_baseVol);
-      });
+      _currentVol = v;
+      
+      if (_currentVol <= 0.1 || _currentVol >= 0.9) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          PerfectVolumeControl.setVolume(0.5);
+          _currentVol = 0.5;
+        });
+      }
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -133,7 +135,6 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
     _volSub?.cancel();
     _focusNode.dispose();
     
-    // Liga o motor do jogo de volta ao fechar esta tela!
     ref.read(keyEventServiceProvider).startListening();
     
     super.dispose();
@@ -144,7 +145,7 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
     final mappingAsync = ref.watch(buttonMappingProvider);
     final mapping = mappingAsync.valueOrNull ?? const ButtonMapping();
 
-    return Focus( // Focus captura botões de mídia (Avançar/Voltar) nativamente
+    return Focus( 
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: (node, event) {

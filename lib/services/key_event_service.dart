@@ -18,11 +18,11 @@ class KeyEventService {
   Timer? _clickTimer;
   int _clickCount = 0;
   MappedAction? _pendingAction;
+  
   StreamSubscription<double>? _volumeSub;
   
-  double _currentVol = 0.5;
+  double _currentVol = 0.5; 
   
-  // VARIÁVEIS DO ESCUDO ANTI-DUPLICIDADE
   int? _lastProcessedKeyId;
   int _lastProcessedTime = 0;
 
@@ -32,23 +32,28 @@ class KeyEventService {
     if (lockVolume) {
       try {
         PerfectVolumeControl.hideUI = true;
+        
         _currentVol = await PerfectVolumeControl.getVolume();
+        // Se estiver muito baixo, garante que o juiz será ouvido
+        if (_currentVol < 0.2) {
+          _currentVol = 0.5;
+          PerfectVolumeControl.setVolume(_currentVol);
+        }
         
         _volumeSub = PerfectVolumeControl.stream.listen((v) {
-          // Só processa se o volume realmente tiver mudado
+          if ((v - _currentVol).abs() < 0.001) return; 
+          
           if (v > _currentVol) {
             _processKeyId(LogicalKeyboardKey.audioVolumeUp.keyId);
           } else if (v < _currentVol) {
             _processKeyId(LogicalKeyboardKey.audioVolumeDown.keyId);
-          } else {
-            return; // Ignora se o som for igual
           }
           
-          _currentVol = v; // Atualiza a memória
+          _currentVol = v; 
           
-          // PROTEÇÃO DE BORDA: Deixa o fone trabalhar livremente, 
-          // só puxa pro meio se bater nas pontas (< 15% ou > 85%)
-          if (_currentVol <= 0.15 || _currentVol >= 0.85) {
+          // ÂNCORA SUAVE: Só interfere se bater nos extremos! 
+          // O fone agora tem liberdade total no meio.
+          if (_currentVol <= 0.1 || _currentVol >= 0.9) {
             Future.delayed(const Duration(milliseconds: 300), () {
               PerfectVolumeControl.setVolume(0.5);
               _currentVol = 0.5;
@@ -82,10 +87,9 @@ class KeyEventService {
   }
 
   bool _processKeyId(int keyId) {
-    // ESCUDO ANTI-DUPLICIDADE (150ms)
-    // Se o teclado e o som dispararem a mesma tecla juntos, ignora o clone.
+    // Escudo reduzido para 50ms para garantir que não vai engolir cliques rápidos do fone
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (keyId == _lastProcessedKeyId && (now - _lastProcessedTime) < 150) {
+    if (keyId == _lastProcessedKeyId && (now - _lastProcessedTime) < 50) {
       return false; 
     }
     _lastProcessedKeyId = keyId;
