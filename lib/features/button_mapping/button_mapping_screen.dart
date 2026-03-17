@@ -1,8 +1,6 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:perfect_volume_control/perfect_volume_control.dart';
 
 import '../../core/app_theme.dart';
 import '../../models/button_mapping.dart';
@@ -19,9 +17,6 @@ class ButtonMappingScreen extends ConsumerStatefulWidget {
 class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
   MappedAction? _waitingFor;
   final FocusNode _focusNode = FocusNode();
-  
-  StreamSubscription<double>? _volSub;
-  double _currentVol = 0.5;
 
   void _assignKey(int keyId, MappedAction action) {
     final current = ref.read(buttonMappingProvider).valueOrNull ?? const ButtonMapping();
@@ -93,37 +88,6 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
   void initState() {
     super.initState();
     ref.read(keyEventServiceProvider).stopListening(); 
-    
-    PerfectVolumeControl.getVolume().then((v) {
-      _currentVol = v;
-      if (_currentVol < 0.2) {
-        _currentVol = 0.5;
-        PerfectVolumeControl.setVolume(_currentVol);
-      }
-    });
-    
-    _volSub = PerfectVolumeControl.stream.listen((v) {
-      if ((v - _currentVol).abs() < 0.001) return; 
-      
-      if (_waitingFor != null) {
-        if (v > _currentVol) { 
-          _assignKey(LogicalKeyboardKey.audioVolumeUp.keyId, _waitingFor!);
-          setState(() => _waitingFor = null);
-        } else if (v < _currentVol) { 
-          _assignKey(LogicalKeyboardKey.audioVolumeDown.keyId, _waitingFor!);
-          setState(() => _waitingFor = null);
-        }
-      }
-      
-      _currentVol = v;
-      
-      if (_currentVol <= 0.1 || _currentVol >= 0.9) {
-        Future.delayed(const Duration(milliseconds: 300), () {
-          PerfectVolumeControl.setVolume(0.5);
-          _currentVol = 0.5;
-        });
-      }
-    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus(); 
@@ -132,16 +96,14 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
 
   @override
   void dispose() {
-    _volSub?.cancel();
     _focusNode.dispose();
-    
     ref.read(keyEventServiceProvider).startListening();
-    
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    const neonColor = Color(0xFFCCFF00);
     final mappingAsync = ref.watch(buttonMappingProvider);
     final mapping = mappingAsync.valueOrNull ?? const ButtonMapping();
 
@@ -149,7 +111,7 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: (node, event) {
-        if (_waitingFor != null && (event is KeyDownEvent || event is KeyUpEvent)) {
+        if (_waitingFor != null && event is KeyDownEvent) {
           final keyId = event.logicalKey.keyId;
           if (keyId != 0) { 
             _assignKey(keyId, _waitingFor!);
@@ -168,7 +130,7 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
         body: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            const Text('Pressione o botão físico que deseja usar para cada ação. Use um controle Bluetooth (ex.: fones de ouvido, volante ou anel).', style: TextStyle(color: AppTheme.onSurface, fontSize: 16)),
+            const Text('Pressione o botão físico que deseja usar (ex: controle Cam Shutter).\n\nLembre-se: Os comandos de mídia (Avançar e Voltar) do seu Fone ou Smartwatch já funcionam automaticamente como Ponto A e Ponto B!', style: TextStyle(color: AppTheme.onSurface, fontSize: 16)),
             const SizedBox(height: 32),
 
             _MappingTile(

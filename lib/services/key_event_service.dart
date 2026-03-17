@@ -1,79 +1,52 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
-import 'package:perfect_volume_control/perfect_volume_control.dart';
 import '../models/button_mapping.dart';
+import 'match_audio_handler.dart'; // Importa o nosso novo interceptador de mídia!
 
 typedef OnMappedAction = void Function(MappedAction action);
 
 class KeyEventService {
   KeyEventService({
     required this.mapping,
-    this.lockVolume = true,
   });
 
   ButtonMapping mapping;
-  bool lockVolume;
   OnMappedAction? onMappedAction;
 
   Timer? _clickTimer;
   int _clickCount = 0;
   MappedAction? _pendingAction;
   
-  StreamSubscription<double>? _volumeSub;
-  
-  double _currentVol = 0.5; 
-  
   int? _lastProcessedKeyId;
   int _lastProcessedTime = 0;
 
+  StreamSubscription<MediaCommand>? _mediaSub;
+
   Future<void> startListening() async {
+    stopListening();
+    
+    // 1. Ouve os teclados Bluetooth (ex: Cam Shutter)
     HardwareKeyboard.instance.addHandler(_handler);
     
-    if (lockVolume) {
-      try {
-        PerfectVolumeControl.hideUI = true;
-        
-        _currentVol = await PerfectVolumeControl.getVolume();
-        // Se estiver muito baixo, garante que o juiz será ouvido
-        if (_currentVol < 0.2) {
-          _currentVol = 0.5;
-          PerfectVolumeControl.setVolume(_currentVol);
-        }
-        
-        _volumeSub = PerfectVolumeControl.stream.listen((v) {
-          if ((v - _currentVol).abs() < 0.001) return; 
-          
-          if (v > _currentVol) {
-            _processKeyId(LogicalKeyboardKey.audioVolumeUp.keyId);
-          } else if (v < _currentVol) {
-            _processKeyId(LogicalKeyboardKey.audioVolumeDown.keyId);
-          }
-          
-          _currentVol = v; 
-          
-          // ÂNCORA SUAVE: Só interfere se bater nos extremos! 
-          // O fone agora tem liberdade total no meio.
-          if (_currentVol <= 0.1 || _currentVol >= 0.9) {
-            Future.delayed(const Duration(milliseconds: 300), () {
-              PerfectVolumeControl.setVolume(0.5);
-              _currentVol = 0.5;
-            });
-          }
-        });
-      } catch (e) {}
-    }
+    // 2. Ouve o Relógio e o Fone de Ouvido!
+    _mediaSub = globalAudioHandler.commandStream.listen((command) {
+      if (command == MediaCommand.next) {
+        // Relógio mandou "Avançar Trilha" = Ponto A
+        onMappedAction?.call(MappedAction.pointA);
+      } else if (command == MediaCommand.previous) {
+        // Relógio mandou "Voltar Trilha" = Ponto B
+        onMappedAction?.call(MappedAction.pointB);
+      } else if (command == MediaCommand.play || command == MediaCommand.pause) {
+        // Relógio mandou Play/Pause = Desfazer
+        onMappedAction?.call(MappedAction.undo);
+      }
+    });
   }
 
   void stopListening() {
     HardwareKeyboard.instance.removeHandler(_handler);
     _clickTimer?.cancel();
-    
-    if (lockVolume) {
-      try {
-        PerfectVolumeControl.hideUI = false;
-        _volumeSub?.cancel();
-      } catch (e) {}
-    }
+    _mediaSub?.cancel();
   }
 
   void updateMapping(ButtonMapping newMapping) {
@@ -81,15 +54,17 @@ class KeyEventService {
   }
 
   bool _handler(KeyEvent event) {
-    if (event is! KeyDownEvent && event is! KeyUpEvent) return false;
-    if (event is KeyUpEvent) return false; 
-    return _processKeyId(event.logicalKey.keyId);
+    if (event is! KeyDownEvent) return false; 
+    
+    final keyId = event.logicalKey.keyId;
+    if (keyId == 0) return false;
+
+    return _processKeyId(keyId);
   }
 
   bool _processKeyId(int keyId) {
-    // Escudo reduzido para 50ms para garantir que não vai engolir cliques rápidos do fone
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (keyId == _lastProcessedKeyId && (now - _lastProcessedTime) < 50) {
+    if (keyId == _lastProcessedKeyId && (now - _lastProcessedTime) < 150) {
       return false; 
     }
     _lastProcessedKeyId = keyId;
