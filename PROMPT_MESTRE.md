@@ -12,9 +12,10 @@ Facilita a contagem e registro de pontos (15, 30, 40, games e sets) de forma rem
 * **Persistência Atual:** Local (preparando terreno para futura integração Cloud/Firebase).
 
 ## 3. Conquistas Atuais (O QUE JÁ FUNCIONA E NÃO PODE SER QUEBRADO)
-* **Motor de Áudio e Bluetooth (Universal):** Intercepta comandos AVRCP universais (`SKIP_NEXT` = Ponto A, `SKIP_PREVIOUS` = Ponto B, `PAUSE/PLAY` = Desfazer) usando `just_audio` (faixa munda 24h) e `audio_service`.
+* **Motor de Áudio e Bluetooth (Universal):** Intercepta comandos AVRCP universais (`SKIP_NEXT` = Ponto A, `SKIP_PREVIOUS` = Ponto B, `PAUSE/PLAY` = Desfazer) usando `just_audio` (faixa munda 24h) e `audio_service`. Testado com sucesso em sistemas de som automotivo.
 * **Lógica de Cliques e Pontuação Local:** O motor físico (via `KeyEventService`) traduz teclas locais (Cam Shutter/Teclado USB) para 1, 2 ou 3 cliques, respeitando a pontuação.
 * **Telas:** `ScoreScreen` (Placar reativo e relógios), `ButtonMappingScreen`, `SettingsScreen`.
+* **Modo Imersivo e Animações:** Placar ocupa a tela inteira (esconde bateria/Wi-Fi). Menu superior flutuante com animação de 700ms controlada por gestos (swipe). Relógios gigates posicionados estrategicamente em portrait/landscape.
 
 ## 4. Regras de Ouro para o Gemini (Diretrizes de IA)
 * **NUNCA** altere o motor de áudio (`match_audio_handler.dart`) sem extrema necessidade.
@@ -24,17 +25,12 @@ Facilita a contagem e registro de pontos (15, 30, 40, games e sets) de forma rem
 ## 5. Backlog de Pendências (O que falta fazer)
 
 ### Grandes (Mudanças de Arquitetura e Fluxo)
-- [ ] **Nova Navegação (Main Menu):** O app não deve abrir direto no Placar. Deve abrir em um Menu Principal com:
-  - **NOVO JOGO:** Escolher preset, definir nomes, iniciar partida (abre o Placar). Botão "Salvar e Sair" com proteção de "Undo" em caso de matchpoint acidental.
-  - **CONFIGURAÇÕES DE PARTIDAS:** Ajustar presets de regras (sem atrelar nomes de jogadores).
-  - **CONFIGURAÇÕES DO APP:** Mapeamento de botões, som, TTS, etc.
-  - **USUÁRIO:** Dados do perfil para futura integração em nuvem/torneios.
-  - **ATIVIDADE:** Histórico de partidas finalizadas (busca, compartilhamento, exclusão em lote/única).
+- [ ] **Nova Navegação (Main Menu):** O app não deve abrir direto no Placar. Deve abrir em um Menu Principal com NOVO JOGO, CONFIGURAÇÕES DE PARTIDAS, CONFIGURAÇÕES DO APP, USUÁRIO, ATIVIDADE (Histórico).
 
 ### Médias (Funcionalidades de Dados)
-- [ ] **Exportação:** Ajustar layout e exportação dos dados do histórico de partidas (Atividade).
-- [ ] **Cloud Sync:** Planejar banco de dados em nuvem para evitar perda de dados na desinstalação.
+- [ ] **Exportação:** Ajustar layout e exportação dos dados do histórico de partidas.
+- [ ] **Cloud Sync:** Planejar banco de dados em nuvem.
+- [ ] **Modo Foco nas Configurações:** Adicionar opção nas configurações do app para abrir atalho das configurações do sistema operacional (Android/iOS) para o usuário ativar o modo "Não Perturbe".
 
 ### Pequenas (Refinamentos UI/UX)
-- [ ] **UI do Placar:** O menu superior do placar (AppBar) deve subir e sumir com animação após o início, maximizando o placar.
-- [ ] **Novos Relógios:** Criar temporizador específico de "Troca de lado rápida" (ex: 90s) para o intervalo entre o 1º e 2º games do set, diferenciando do relógio de saque de 25s.
+- [ ] **Novos Relógios:** Criar temporizador específico de "Troca de lado rápida" (ex: 90s) para o intervalo entre o 1º e 2º games do set.
