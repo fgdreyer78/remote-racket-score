@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
-import 'package:just_audio/just_audio.dart'; // PACOTE NOVO: O nosso player "laranja"!
+import 'package:just_audio/just_audio.dart';
 
 enum MediaCommand { next, previous, play, pause }
 
@@ -10,8 +10,6 @@ late MatchAudioHandler globalAudioHandler;
 class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
   final _commandController = StreamController<MediaCommand>.broadcast();
   
-  // O NOSSO "LARANJA": Um player real, mas que fica mudo. 
-  // Isso obriga o Android a respeitar o nosso sequestro de Bluetooth!
   final _player = AudioPlayer(); 
 
   Stream<MediaCommand> get commandStream => _commandController.stream;
@@ -21,11 +19,16 @@ class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   Future<void> _init() async {
-    // 1. Configura a sessão de áudio para música
     final session = await AudioSession.instance;
     await session.configure(AudioSessionConfiguration.music());
 
-    // 2. Cria a notificação de mídia
+    // A CORREÇÃO ESTÁ AQUI: "duration:" adicionado para agradar o compilador!
+    await _player.setAudioSource(
+      SilenceAudioSource(duration: const Duration(hours: 24)),
+    );
+    await _player.setLoopMode(LoopMode.all);
+    _player.play();
+
     mediaItem.add(const MediaItem(
       id: 'placar_id',
       album: 'Remote Racket Score',
@@ -33,8 +36,6 @@ class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
       artist: 'Controle os pontos pelo fone/relógio',
     ));
 
-    // 3. A CHAVE MESTRA DO BLUETOOTH: systemActions!
-    // Sem isso, o Android bloqueia os cliques do fone.
     playbackState.add(playbackState.value.copyWith(
       controls: [
         MediaControl.skipToPrevious,
@@ -51,7 +52,6 @@ class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
       playing: true,
     ));
 
-    // Força o Android a nos dar o foco ativando a sessão
     await session.setActive(true);
   }
 
@@ -68,7 +68,6 @@ class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> play() async {
     _commandController.add(MediaCommand.play);
-    // Mantemos como playing: true para o Android não matar o app
     playbackState.add(playbackState.value.copyWith(playing: true));
   }
 
