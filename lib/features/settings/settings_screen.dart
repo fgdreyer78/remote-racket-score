@@ -169,6 +169,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             activeColor: AppTheme.primary,
           ),
           const SizedBox(height: 24),
+
+          // --- COMEÇO DO BLOCO INSERIDO ---
+          const Text('Cronômetro e Tempos', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
+          _numberField('Relógio de saque (segundos)', _serveClockSeconds, (v) => _serveClockSeconds = v, min: 0),
+          _numberField('Intervalo entre games (segundos)', _breakBetweenGamesSeconds, (v) => _breakBetweenGamesSeconds = v, min: 0),
+          _numberField('Intervalo entre sets (segundos)', _breakBetweenSetsSeconds, (v) => _breakBetweenSetsSeconds = v, min: 0),
+          SwitchListTile(
+            title: const Text('Aviso sonoro de tempo esgotado', style: TextStyle(color: AppTheme.onSurface)),
+            value: _timeWarningSound,
+            onChanged: (v) => setState(() => _timeWarningSound = v),
+            activeColor: AppTheme.primary,
+          ),
+          const SizedBox(height: 24),
+          // --- FIM DO BLOCO INSERIDO ---
+
           const Text(
             'Controles de hardware', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
           SwitchListTile(
