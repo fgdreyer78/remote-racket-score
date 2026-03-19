@@ -14,8 +14,8 @@ Facilita a contagem e registro de pontos (15, 30, 40, games e sets) de forma rem
 ## 3. Conquistas Atuais (O QUE JÁ FUNCIONA E NÃO PODE SER QUEBRADO)
 * **Motor de Áudio e Bluetooth (Universal):** Intercepta comandos AVRCP universais (`SKIP_NEXT` = Ponto A, `SKIP_PREVIOUS` = Ponto B, `PAUSE/PLAY` = Desfazer) usando `just_audio` (faixa munda 24h) e `audio_service`. Testado com sucesso em sistemas de som automotivo.
 * **Lógica de Cliques e Pontuação Local:** O motor físico (via `KeyEventService`) traduz teclas locais (Cam Shutter/Teclado USB) para 1, 2 ou 3 cliques, respeitando a pontuação.
-* **Telas:** `ScoreScreen` (Placar reativo e relógios), `ButtonMappingScreen`, `SettingsScreen`.
-* **Modo Imersivo e Animações:** Placar ocupa a tela inteira (esconde bateria/Wi-Fi). Menu superior flutuante com animação de 700ms controlada por gestos (swipe). Relógios gigates posicionados estrategicamente em portrait/landscape.
+* **Telas Atuais:** `ScoreScreen` (Placar reativo e relógios), `ButtonMappingScreen`, `SettingsScreen`.
+* **UI Imersiva e Gestos (NOVO):** Tela cheia absoluta (Immersive Sticky). Menu superior flutuante que sobe sozinho ao marcar pontos para despoluir a tela (retorna com swipe down). Relógios gigantes e independentes que não deformam o placar nas orientações retrato e paisagem (uso inteligente de Stack/FittedBox).
 
 ## 4. Regras de Ouro para o Gemini (Diretrizes de IA)
 * **NUNCA** altere o motor de áudio (`match_audio_handler.dart`) sem extrema necessidade.

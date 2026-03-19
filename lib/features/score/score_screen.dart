@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // NECESSÁRIO PARA ESCONDER A BARRA DO SISTEMA
+import 'package:flutter/services.dart';
 import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,20 +29,17 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   String _clockLabel = '';
   Timer? _clockTimer;
   
-  // Variável para controlar a visibilidade do menu flutuante
   bool _isMenuVisible = true;
 
   @override
   void initState() {
     super.initState();
-    // TELA CHEIA ABSOLUTA: Esconde status de bateria, Wi-Fi e botões de navegação
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   @override
   void dispose() {
     _clockTimer?.cancel();
-    // Ao sair desta tela, devolve a barra de bateria para o celular voltar ao normal
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
@@ -72,17 +69,6 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     });
   }
 
-  bool _isMatchNotStarted(ScoreState score) {
-    return score.pointsA == 0 &&
-        score.pointsB == 0 &&
-        score.gamesA == 0 &&
-        score.gamesB == 0 &&
-        score.setsA == 0 &&
-        score.setsB == 0 &&
-        !score.isTiebreak &&
-        score.history.isEmpty;
-  }
-
   @override
   Widget build(BuildContext context) {
     ref.watch(keyEventServiceProvider);
@@ -100,8 +86,8 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     ref.listen<ScoreState>(scoreStateProvider, (prev, next) {
       if (config == null || prev == null || next == prev) return;
       
-      // AUTO-HIDE: Se o jogo acabou de começar (saiu do 0x0), o menu sobe sozinho!
-      if (_isMatchNotStarted(prev) && !_isMatchNotStarted(next) && _isMenuVisible) {
+      // AUTO-HIDE CORRIGIDO: Se houver QUALQUER mudança no placar e o menu estiver visível, esconda-o!
+      if (_isMenuVisible) {
         setState(() => _isMenuVisible = false);
       }
 
@@ -116,9 +102,9 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       final shouldRest = gameEnded && isOddGame && !isFirstGame;
 
       if (setEnded && config.breakBetweenSetsSeconds > 0) {
-        _startClock(config.breakBetweenSetsSeconds, 'Intervalo (set)', config);
+        _startClock(config.breakBetweenSetsSeconds, 'Intervalo', config);
       } else if (shouldRest && config.breakBetweenGamesSeconds > 0) {
-        _startClock(config.breakBetweenGamesSeconds, 'Intervalo (game)', config);
+        _startClock(config.breakBetweenGamesSeconds, 'Intervalo', config);
       } else if (pointAdded && config.serveClockSeconds > 0) {
         _startClock(config.serveClockSeconds, 'Saque', config);
       }
@@ -128,20 +114,19 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.surface,
-      // GESTOS INTELIGENTES: Deslizar para cima/baixo para mostrar o menu
       body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onVerticalDragUpdate: (details) {
           if (details.primaryDelta! > 2 && !_isMenuVisible) {
-            setState(() => _isMenuVisible = true); // Swipe down
+            setState(() => _isMenuVisible = true); 
           } else if (details.primaryDelta! < -2 && _isMenuVisible) {
-            setState(() => _isMenuVisible = false); // Swipe up
+            setState(() => _isMenuVisible = false); 
           }
         },
         child: config == null
             ? const Center(child: CircularProgressIndicator(color: neonColor))
             : Stack(
                 children: [
-                  // CAMADA 1: O Placar (Ocupando a tela inteira)
                   SafeArea(
                     child: _ScoreContent(
                       score: score,
@@ -149,7 +134,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                       playerBName: config.playerBName,
                       ttsLanguage: config.ttsLanguage,
                       clockLabel: _clockLabel,
-                      clockRemaining: _clockRemaining, // Passando o relógio para dentro do placar
+                      clockRemaining: _clockRemaining, 
                       onPointA: () {
                         if (!score.matchOver) ref.read(scoreStateProvider.notifier).addPointA();
                       },
@@ -160,14 +145,13 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                     ),
                   ),
 
-                  // CAMADA 2: O Menu Superior Animado (Subindo em 700ms)
                   AnimatedSlide(
                     offset: _isMenuVisible ? Offset.zero : const Offset(0, -1.2),
                     duration: const Duration(milliseconds: 700),
                     curve: Curves.easeInOutCubic,
                     child: Container(
-                      color: AppTheme.surface.withOpacity(0.95), // Fundo quase sólido para ler os ícones
-                      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top), // Para não bater no notch da câmera
+                      color: AppTheme.surface.withOpacity(0.95), 
+                      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top), 
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: Row(
@@ -181,7 +165,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(icon: const Icon(Icons.history, color: neonColor), tooltip: 'Histórico', onPressed: () => _openHistory(context)),
-                                IconButton(icon: const Icon(Icons.casino, color: neonColor), tooltip: 'Coin toss', onPressed: _isMatchNotStarted(score) ? () => _coinToss(context) : null),
+                                IconButton(icon: const Icon(Icons.casino, color: neonColor), tooltip: 'Coin toss', onPressed: () => _coinToss(context)),
                                 IconButton(icon: const Icon(Icons.refresh, color: neonColor), tooltip: 'Nova partida', onPressed: () => _confirmReset(context)),
                                 IconButton(icon: const Icon(Icons.sports_tennis, color: neonColor), tooltip: 'Configurações', onPressed: () => _openSettings(context)),
                                 IconButton(icon: const Icon(Icons.settings_input_antenna, color: neonColor), tooltip: 'Mapear botões', onPressed: () => _openButtonMapping(context)),
@@ -227,7 +211,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         ) ?? false;
     if (shouldReset) {
       ref.read(scoreStateProvider.notifier).reset();
-      setState(() => _isMenuVisible = true); // Mostra o menu de volta ao resetar!
+      setState(() => _isMenuVisible = true); 
     }
   }
 
@@ -293,40 +277,28 @@ class _ScoreContent extends StatelessWidget {
   final VoidCallback onPointB;
   final VoidCallback onUndo;
 
-  // WIDGET DO RELÓGIO GIGANTE (para portrait) - ATUALIZADO
-  Widget _buildBigClock(Color neonColor) {
+  Widget _buildBigClockPortrait(Color neonColor) {
     if (clockRemaining == null) return const SizedBox.shrink();
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Texto: CAIXA ALTA, Branco, 50% maior
         Text(clockLabel.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w500)),
-        // Número: Mantém estilo
-        Text('$clockRemaining', style: TextStyle(color: neonColor, fontWeight: FontWeight.bold, fontSize: 80)),
+        Text('$clockRemaining', style: TextStyle(color: neonColor, fontWeight: FontWeight.bold, fontSize: 80, height: 1.1)),
       ],
     );
   }
 
-  // NOVO WIDGET DO RELÓGIO LANDSCAPE - Alinhado à esquerda
-  Widget _buildLandscapeClock(Color neonColor) {
+  Widget _buildBigClockLandscape(Color neonColor) {
     if (clockRemaining == null) return const SizedBox.shrink();
-    return AnimatedSlide(
-      offset: Offset.zero,
-      duration: const Duration(milliseconds: 700),
-      curve: Curves.easeInOutCubic,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 64.0, right: 16.0), // Alinhado com o nome
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.start, // Alinhado à esquerda
-          children: [
-            // Texto: CAIXA ALTA, Branco, 50% maior
-            Text('SAQUE', style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w500)),
-            const SizedBox(width: 16),
-            // Número: Mantém estilo
-            Text('$clockRemaining', style: TextStyle(color: neonColor, fontWeight: FontWeight.bold, fontSize: 80)),
-          ],
-        ),
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(clockLabel.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w500)),
+        const SizedBox(width: 24),
+        Text('$clockRemaining', style: TextStyle(color: neonColor, fontWeight: FontWeight.bold, fontSize: 80, height: 1.1)),
+      ],
     );
   }
 
@@ -368,24 +340,23 @@ class _ScoreContent extends StatelessWidget {
 
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
 
-    // REFATORAÇÃO DO CONTEÚDO PARA TRATAR LANDSCAPE
     Widget content;
     if (isPortrait) {
       content = Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // RELÓGIO NA VERTICAL (Acima do placar)
-          if (clockRemaining != null) ...[
-            _buildBigClock(neonColor),
-            const SizedBox(height: 32),
-          ],
+          SizedBox(
+            height: 160, 
+            child: clockRemaining != null ? _buildBigClockPortrait(neonColor) : null,
+          ),
 
           GestureDetector(
             behavior: HitTestBehavior.opaque, 
             onTap: onPointA,
             onLongPress: onUndo,
             child: _buildPlayer(
+              isPortrait: isPortrait, // PASSEI A VARIÁVEL DE VOLTA PARA CÁ!
               name: playerAName,
               isServer: score.serverIsA,
               previousSetsGames: score.previousSetsGamesA,
@@ -400,13 +371,14 @@ class _ScoreContent extends StatelessWidget {
             ),
           ),
           
-          const SizedBox(height: 64), // Maior separação vertical em portrait
+          const SizedBox(height: 32),
           
           GestureDetector(
             behavior: HitTestBehavior.opaque, 
             onTap: onPointB,
             onLongPress: onUndo,
             child: _buildPlayer(
+              isPortrait: isPortrait, // PASSEI A VARIÁVEL DE VOLTA PARA CÁ!
               name: playerBName,
               isServer: !score.serverIsA,
               previousSetsGames: score.previousSetsGamesB,
@@ -423,51 +395,66 @@ class _ScoreContent extends StatelessWidget {
         ],
       );
     } else {
-      // NOVO Layout Landscape
-      content = Column(
-        mainAxisAlignment: MainAxisAlignment.spaceAround, // "com algum respiro"
+      content = Stack(
+        alignment: Alignment.center,
         children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque, 
-            onTap: onPointA,
-            onLongPress: onUndo,
-            child: _buildPlayer(
-              name: playerAName,
-              isServer: score.serverIsA,
-              previousSetsGames: score.previousSetsGamesA,
-              games: score.gamesA,
-              points: pA,
-              hasSets: hasSets,
-              hasGames: hasGames,
-              hasPoints: hasPoints,
-              neonColor: neonColor,
-              whiteColor: whiteColor,
-              grayColor: grayColor,
-            ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center, 
+            children: [
+              GestureDetector(
+                behavior: HitTestBehavior.opaque, 
+                onTap: onPointA,
+                onLongPress: onUndo,
+                child: _buildPlayer(
+                  isPortrait: isPortrait,
+                  name: playerAName,
+                  isServer: score.serverIsA,
+                  previousSetsGames: score.previousSetsGamesA,
+                  games: score.gamesA,
+                  points: pA,
+                  hasSets: hasSets,
+                  hasGames: hasGames,
+                  hasPoints: hasPoints,
+                  neonColor: neonColor,
+                  whiteColor: whiteColor,
+                  grayColor: grayColor,
+                ),
+              ),
+              
+              const SizedBox(height: 80), 
+              
+              GestureDetector(
+                behavior: HitTestBehavior.opaque, 
+                onTap: onPointB,
+                onLongPress: onUndo,
+                child: _buildPlayer(
+                  isPortrait: isPortrait,
+                  name: playerBName,
+                  isServer: !score.serverIsA,
+                  previousSetsGames: score.previousSetsGamesB,
+                  games: score.gamesB,
+                  points: pB,
+                  hasSets: hasSets,
+                  hasGames: hasGames,
+                  hasPoints: hasPoints,
+                  neonColor: neonColor,
+                  whiteColor: whiteColor,
+                  grayColor: grayColor,
+                ),
+              ),
+            ],
           ),
-          
-          // NOVO RELÓGIO NA HORIZONTAL (Entre os jogadores, alinhado à esquerda)
+
           if (clockRemaining != null)
-            _buildLandscapeClock(neonColor),
-          
-          GestureDetector(
-            behavior: HitTestBehavior.opaque, 
-            onTap: onPointB,
-            onLongPress: onUndo,
-            child: _buildPlayer(
-              name: playerBName,
-              isServer: !score.serverIsA,
-              previousSetsGames: score.previousSetsGamesB,
-              games: score.gamesB,
-              points: pB,
-              hasSets: hasSets,
-              hasGames: hasGames,
-              hasPoints: hasPoints,
-              neonColor: neonColor,
-              whiteColor: whiteColor,
-              grayColor: grayColor,
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 24.0), 
+                  child: _buildBigClockLandscape(neonColor),
+                ),
+              ),
             ),
-          ),
         ],
       );
     }
@@ -483,7 +470,7 @@ class _ScoreContent extends StatelessWidget {
                 fit: BoxFit.contain,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: content, // Usando o widget content calculado
+                  child: content, 
                 ),
               ),
             ),
@@ -506,8 +493,9 @@ class _ScoreContent extends StatelessWidget {
     );
   }
 
-  // ATUALIZAÇÃO DE _BUILDPLAYER - REMOVE O TRATAMENTO DE PORTRAIT/LANDSCAPE
+  // A MÁGICA RESTAURADA: O layout muda se está em pé (Column) ou deitado (Row)
   Widget _buildPlayer({
+    required bool isPortrait,
     required String name,
     required bool isServer,
     required List<int> previousSetsGames,
@@ -550,14 +538,26 @@ class _ScoreContent extends StatelessWidget {
       ],
     );
 
-    // Layout básico: Nome à esquerda, Pontos à direita.
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(width: 500, child: nameRow), // Mantém largura fixa para o nome
-        const SizedBox(width: 48),
-        scoresRow,
-      ],
-    );
+    if (isPortrait) {
+      // VERTICAL: Nome em cima, pontos embaixo. Tudo fica gigante de novo!
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          nameRow,
+          const SizedBox(height: 16),
+          Padding(padding: const EdgeInsets.only(left: 64), child: scoresRow),
+        ],
+      );
+    } else {
+      // HORIZONTAL: Nome de um lado, pontos do outro
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(width: 500, child: nameRow), 
+          const SizedBox(width: 48),
+          scoresRow,
+        ],
+      );
+    }
   }
 }
