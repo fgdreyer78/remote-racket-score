@@ -34,13 +34,17 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   @override
   void initState() {
     super.initState();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    // Avisa o "Cérebro" que o jogo começou (ele vai cuidar do volume e da tela imersiva se o usuário ativou nas configurações)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(keyEventServiceProvider).setGameMode(true);
+    });
   }
 
   @override
   void dispose() {
     _clockTimer?.cancel();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Avisa o "Cérebro" que a tela fechou e ele deve liberar o celular
+    ref.read(keyEventServiceProvider).setGameMode(false);
     super.dispose();
   }
 
@@ -69,6 +73,17 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     });
   }
 
+  bool _isMatchNotStarted(ScoreState score) {
+    return score.pointsA == 0 &&
+        score.pointsB == 0 &&
+        score.gamesA == 0 &&
+        score.gamesB == 0 &&
+        score.setsA == 0 &&
+        score.setsB == 0 &&
+        !score.isTiebreak &&
+        score.history.isEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.watch(keyEventServiceProvider);
@@ -86,7 +101,6 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     ref.listen<ScoreState>(scoreStateProvider, (prev, next) {
       if (config == null || prev == null || next == prev) return;
       
-      // AUTO-HIDE CORRIGIDO: Se houver QUALQUER mudança no placar e o menu estiver visível, esconda-o!
       if (_isMenuVisible) {
         setState(() => _isMenuVisible = false);
       }
@@ -182,17 +196,25 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     );
   }
 
-  void _openSettings(BuildContext context) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+  // --- NAVEGAÇÃO INTELIGENTE (Desliga o Modo Jogo ao sair, Liga ao voltar) ---
+  void _openSettings(BuildContext context) async {
+    ref.read(keyEventServiceProvider).setGameMode(false);
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    ref.read(keyEventServiceProvider).setGameMode(true);
   }
 
-  void _openButtonMapping(BuildContext context) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ButtonMappingScreen()));
+  void _openButtonMapping(BuildContext context) async {
+    ref.read(keyEventServiceProvider).setGameMode(false);
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ButtonMappingScreen()));
+    ref.read(keyEventServiceProvider).setGameMode(true);
   }
 
-  void _openHistory(BuildContext context) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
+  void _openHistory(BuildContext context) async {
+    ref.read(keyEventServiceProvider).setGameMode(false);
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
+    ref.read(keyEventServiceProvider).setGameMode(true);
   }
+  // -------------------------------------------------------------------------
 
   Future<void> _confirmReset(BuildContext context) async {
     final shouldReset = await showDialog<bool>(
@@ -356,7 +378,7 @@ class _ScoreContent extends StatelessWidget {
             onTap: onPointA,
             onLongPress: onUndo,
             child: _buildPlayer(
-              isPortrait: isPortrait, // PASSEI A VARIÁVEL DE VOLTA PARA CÁ!
+              isPortrait: isPortrait,
               name: playerAName,
               isServer: score.serverIsA,
               previousSetsGames: score.previousSetsGamesA,
@@ -378,7 +400,7 @@ class _ScoreContent extends StatelessWidget {
             onTap: onPointB,
             onLongPress: onUndo,
             child: _buildPlayer(
-              isPortrait: isPortrait, // PASSEI A VARIÁVEL DE VOLTA PARA CÁ!
+              isPortrait: isPortrait,
               name: playerBName,
               isServer: !score.serverIsA,
               previousSetsGames: score.previousSetsGamesB,
@@ -493,7 +515,6 @@ class _ScoreContent extends StatelessWidget {
     );
   }
 
-  // A MÁGICA RESTAURADA: O layout muda se está em pé (Column) ou deitado (Row)
   Widget _buildPlayer({
     required bool isPortrait,
     required String name,
@@ -539,7 +560,6 @@ class _ScoreContent extends StatelessWidget {
     );
 
     if (isPortrait) {
-      // VERTICAL: Nome em cima, pontos embaixo. Tudo fica gigante de novo!
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -549,7 +569,6 @@ class _ScoreContent extends StatelessWidget {
         ],
       );
     } else {
-      // HORIZONTAL: Nome de um lado, pontos do outro
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [

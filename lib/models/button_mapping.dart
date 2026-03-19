@@ -10,76 +10,111 @@ MappedAction? _actionFromString(String? val) {
 
 class ButtonMapping {
   const ButtonMapping({
-    this.pointAKeyId,
-    this.pointBKeyId,
-    this.undoKeyId,
-    this.doubleClickActionA,
-    this.doubleClickActionB,
-    this.doubleClickActionUndo,
-    this.tripleClickActionA,
-    this.tripleClickActionB,
-    this.tripleClickActionUndo,
+    // --- VOLUME / SHUTTER ---
+    this.enableVolume = false,
+    this.volUpAction = MappedAction.pointA,
+    this.volUpDouble,
+    this.volUpTriple,
+    this.volDownAction = MappedAction.pointB,
+    this.volDownDouble,
+    this.volDownTriple,
+    this.volumeDelayMs = 400,
+
+    // --- MÍDIA ---
+    this.enableMedia = true,
+    this.mediaNextAction = MappedAction.pointA,
+    this.mediaPrevAction = MappedAction.pointB,
+    this.mediaPlayAction = MappedAction.undo,
+
+    // --- TECLADO ---
+    this.enableKeyboard = true,
+    this.keyA,
+    this.keyB,
+    this.keyUndo,
+    this.keyDoubleA,
+    this.keyDoubleB,
+    this.keyDoubleUndo,
+    this.keyTripleA,
+    this.keyTripleB,
+    this.keyTripleUndo,
+    this.keyboardDelayMs = 400,
   });
 
-  final int? pointAKeyId;
-  final int? pointBKeyId;
-  final int? undoKeyId;
+  final bool enableVolume;
+  final MappedAction? volUpAction;
+  final MappedAction? volUpDouble;
+  final MappedAction? volUpTriple;
+  final MappedAction? volDownAction;
+  final MappedAction? volDownDouble;
+  final MappedAction? volDownTriple;
+  final int volumeDelayMs;
 
-  final MappedAction? doubleClickActionA;
-  final MappedAction? doubleClickActionB;
-  final MappedAction? doubleClickActionUndo;
+  final bool enableMedia;
+  final MappedAction? mediaNextAction;
+  final MappedAction? mediaPrevAction;
+  final MappedAction? mediaPlayAction;
 
-  final MappedAction? tripleClickActionA;
-  final MappedAction? tripleClickActionB;
-  final MappedAction? tripleClickActionUndo;
+  final bool enableKeyboard;
+  final int? keyA;
+  final int? keyB;
+  final int? keyUndo;
+  final MappedAction? keyDoubleA;
+  final MappedAction? keyDoubleB;
+  final MappedAction? keyDoubleUndo;
+  final MappedAction? keyTripleA;
+  final MappedAction? keyTripleB;
+  final MappedAction? keyTripleUndo;
+  final int keyboardDelayMs;
 
   ButtonMapping copyWith({
-    int? pointAKeyId,
-    int? pointBKeyId,
-    int? undoKeyId,
-    MappedAction? doubleClickActionA,
-    MappedAction? doubleClickActionB,
-    MappedAction? doubleClickActionUndo,
-    MappedAction? tripleClickActionA,
-    MappedAction? tripleClickActionB,
-    MappedAction? tripleClickActionUndo,
+    bool? enableVolume, MappedAction? volUpAction, MappedAction? volUpDouble, MappedAction? volUpTriple, MappedAction? volDownAction, MappedAction? volDownDouble, MappedAction? volDownTriple, int? volumeDelayMs,
+    bool? enableMedia, MappedAction? mediaNextAction, MappedAction? mediaPrevAction, MappedAction? mediaPlayAction,
+    bool? enableKeyboard, int? keyA, int? keyB, int? keyUndo, MappedAction? keyDoubleA, MappedAction? keyDoubleB, MappedAction? keyDoubleUndo, MappedAction? keyTripleA, MappedAction? keyTripleB, MappedAction? keyTripleUndo, int? keyboardDelayMs,
   }) {
     return ButtonMapping(
-      pointAKeyId: pointAKeyId ?? this.pointAKeyId,
-      pointBKeyId: pointBKeyId ?? this.pointBKeyId,
-      undoKeyId: undoKeyId ?? this.undoKeyId,
-      doubleClickActionA: doubleClickActionA ?? this.doubleClickActionA,
-      doubleClickActionB: doubleClickActionB ?? this.doubleClickActionB,
-      doubleClickActionUndo: doubleClickActionUndo ?? this.doubleClickActionUndo,
-      tripleClickActionA: tripleClickActionA ?? this.tripleClickActionA,
-      tripleClickActionB: tripleClickActionB ?? this.tripleClickActionB,
-      tripleClickActionUndo: tripleClickActionUndo ?? this.tripleClickActionUndo,
+      enableVolume: enableVolume ?? this.enableVolume,
+      volUpAction: volUpAction ?? this.volUpAction, volUpDouble: volUpDouble ?? this.volUpDouble, volUpTriple: volUpTriple ?? this.volUpTriple,
+      volDownAction: volDownAction ?? this.volDownAction, volDownDouble: volDownDouble ?? this.volDownDouble, volDownTriple: volDownTriple ?? this.volDownTriple,
+      volumeDelayMs: volumeDelayMs ?? this.volumeDelayMs,
+      
+      enableMedia: enableMedia ?? this.enableMedia,
+      mediaNextAction: mediaNextAction ?? this.mediaNextAction, mediaPrevAction: mediaPrevAction ?? this.mediaPrevAction, mediaPlayAction: mediaPlayAction ?? this.mediaPlayAction,
+      
+      enableKeyboard: enableKeyboard ?? this.enableKeyboard,
+      keyA: keyA ?? this.keyA, keyB: keyB ?? this.keyB, keyUndo: keyUndo ?? this.keyUndo,
+      keyDoubleA: keyDoubleA ?? this.keyDoubleA, keyDoubleB: keyDoubleB ?? this.keyDoubleB, keyDoubleUndo: keyDoubleUndo ?? this.keyDoubleUndo,
+      keyTripleA: keyTripleA ?? this.keyTripleA, keyTripleB: keyTripleB ?? this.keyTripleB, keyTripleUndo: keyTripleUndo ?? this.keyTripleUndo,
+      keyboardDelayMs: keyboardDelayMs ?? this.keyboardDelayMs,
     );
   }
 
   factory ButtonMapping.fromJson(Map<String, dynamic> json) {
     return ButtonMapping(
-      pointAKeyId: json['pointAKeyId'] as int?,
-      pointBKeyId: json['pointBKeyId'] as int?,
-      undoKeyId: json['undoKeyId'] as int?,
-      doubleClickActionA: _actionFromString(json['doubleClickActionA'] as String?),
-      doubleClickActionB: _actionFromString(json['doubleClickActionB'] as String?),
-      doubleClickActionUndo: _actionFromString(json['doubleClickActionUndo'] as String?),
-      tripleClickActionA: _actionFromString(json['tripleClickActionA'] as String?),
-      tripleClickActionB: _actionFromString(json['tripleClickActionB'] as String?),
-      tripleClickActionUndo: _actionFromString(json['tripleClickActionUndo'] as String?),
+      enableVolume: json['enableVolume'] as bool? ?? false,
+      volUpAction: _actionFromString(json['volUpAction'] as String?) ?? MappedAction.pointA,
+      volUpDouble: _actionFromString(json['volUpDouble'] as String?),
+      volUpTriple: _actionFromString(json['volUpTriple'] as String?),
+      volDownAction: _actionFromString(json['volDownAction'] as String?) ?? MappedAction.pointB,
+      volDownDouble: _actionFromString(json['volDownDouble'] as String?),
+      volDownTriple: _actionFromString(json['volDownTriple'] as String?),
+      volumeDelayMs: json['volumeDelayMs'] as int? ?? 400,
+
+      enableMedia: json['enableMedia'] as bool? ?? true,
+      mediaNextAction: _actionFromString(json['mediaNextAction'] as String?) ?? MappedAction.pointA,
+      mediaPrevAction: _actionFromString(json['mediaPrevAction'] as String?) ?? MappedAction.pointB,
+      mediaPlayAction: _actionFromString(json['mediaPlayAction'] as String?) ?? MappedAction.undo,
+
+      enableKeyboard: json['enableKeyboard'] as bool? ?? true,
+      keyA: json['keyA'] as int?, keyB: json['keyB'] as int?, keyUndo: json['keyUndo'] as int?,
+      keyDoubleA: _actionFromString(json['keyDoubleA'] as String?), keyDoubleB: _actionFromString(json['keyDoubleB'] as String?), keyDoubleUndo: _actionFromString(json['keyDoubleUndo'] as String?),
+      keyTripleA: _actionFromString(json['keyTripleA'] as String?), keyTripleB: _actionFromString(json['keyTripleB'] as String?), keyTripleUndo: _actionFromString(json['keyTripleUndo'] as String?),
+      keyboardDelayMs: json['keyboardDelayMs'] as int? ?? 400,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'pointAKeyId': pointAKeyId,
-        'pointBKeyId': pointBKeyId,
-        'undoKeyId': undoKeyId,
-        'doubleClickActionA': doubleClickActionA?.name,
-        'doubleClickActionB': doubleClickActionB?.name,
-        'doubleClickActionUndo': doubleClickActionUndo?.name,
-        'tripleClickActionA': tripleClickActionA?.name,
-        'tripleClickActionB': tripleClickActionB?.name,
-        'tripleClickActionUndo': tripleClickActionUndo?.name,
+        'enableVolume': enableVolume, 'volUpAction': volUpAction?.name, 'volUpDouble': volUpDouble?.name, 'volUpTriple': volUpTriple?.name, 'volDownAction': volDownAction?.name, 'volDownDouble': volDownDouble?.name, 'volDownTriple': volDownTriple?.name, 'volumeDelayMs': volumeDelayMs,
+        'enableMedia': enableMedia, 'mediaNextAction': mediaNextAction?.name, 'mediaPrevAction': mediaPrevAction?.name, 'mediaPlayAction': mediaPlayAction?.name,
+        'enableKeyboard': enableKeyboard, 'keyA': keyA, 'keyB': keyB, 'keyUndo': keyUndo, 'keyDoubleA': keyDoubleA?.name, 'keyDoubleB': keyDoubleB?.name, 'keyDoubleUndo': keyDoubleUndo?.name, 'keyTripleA': keyTripleA?.name, 'keyTripleB': keyTripleB?.name, 'keyTripleUndo': keyTripleUndo?.name, 'keyboardDelayMs': keyboardDelayMs,
       };
 }

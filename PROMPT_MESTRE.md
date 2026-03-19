@@ -3,34 +3,34 @@
 
 ## 1. Visão Geral do Projeto
 Aplicativo multi-idiomas (inglês e português) que visa dar um ar de profissionalismo a partidas amadoras de esportes de raquete (Tênis, Beach Tennis, Padel). 
-Facilita a contagem e registro de pontos (15, 30, 40, games e sets) de forma remota (fone Bluetooth, Smartwatch, Cam Shutter) ou manual. Exibe um placar visualmente limpo em TVs ou dispositivos móveis, anuncia os pontos via áudio (TTS) e gera relatórios de partidas para integração futura com apps de ranking e torneios.
+Facilita a contagem e registro de pontos de forma remota (fone Bluetooth, Smartwatch, Cam Shutter).
 
-## 2. Stack Tecnológico e Arquitetura
-* **Framework:** Flutter (Dart).
-* **Gerência de Estado:** Riverpod (`flutter_riverpod`).
-* **Estrutura de Pastas:** Padrão modular (`lib/features/`, `lib/providers/`, `lib/services/`, `lib/models/`).
-* **Persistência Atual:** Local (preparando terreno para futura integração Cloud/Firebase).
+## 2. Índice e Estrutura de Pastas (Onde está o quê)
+* `lib/features/`: Telas visuais do usuário.
+  * `/score/score_screen.dart`: Tela principal do placar (gestos, modo imersivo, relógios gigantes).
+  * `/settings/settings_screen.dart`: Menu de regras, tiebreak e temporizadores.
+  * `/button_mapping/button_mapping_screen.dart`: Tela para mapear cliques (1, 2, 3) a funções do placar.
+  * `/history/history_screen.dart`: Tela do histórico (Atividade).
+* `lib/services/`: Lógica pesada, sistema e hardwares.
+  * `match_audio_handler.dart`: O "Laranja" de Áudio. Usa `just_audio` (silêncio 24h) para roubar comandos de fone/smartwatch.
+  * `key_event_service.dart`: O Cérebro Físico. Ouve teclas, gerencia botões de volume (`perfect_volume_control`) para Shutters e faz a matemática do timer de 1, 2 e 3 cliques.
+  * `tts_service.dart`: O Narrador (Text-to-Speech).
+* `lib/providers/`: Gerenciadores de estado (Riverpod). Mantém a memória ativa do app.
+* `lib/models/`: Regras de negócio, placar (`score_state.dart`), e configuração (`game_config.dart`).
 
-## 3. Conquistas Atuais (O QUE JÁ FUNCIONA E NÃO PODE SER QUEBRADO)
-* **Motor de Áudio e Bluetooth (Universal):** Intercepta comandos AVRCP universais (`SKIP_NEXT` = Ponto A, `SKIP_PREVIOUS` = Ponto B, `PAUSE/PLAY` = Desfazer) usando `just_audio` (faixa munda 24h) e `audio_service`. Testado com sucesso em sistemas de som automotivo.
-* **Lógica de Cliques e Pontuação Local:** O motor físico (via `KeyEventService`) traduz teclas locais (Cam Shutter/Teclado USB) para 1, 2 ou 3 cliques, respeitando a pontuação.
-* **Telas Atuais:** `ScoreScreen` (Placar reativo e relógios), `ButtonMappingScreen`, `SettingsScreen`.
-* **UI Imersiva e Gestos (NOVO):** Tela cheia absoluta (Immersive Sticky). Menu superior flutuante que sobe sozinho ao marcar pontos para despoluir a tela (retorna com swipe down). Relógios gigantes e independentes que não deformam o placar nas orientações retrato e paisagem (uso inteligente de Stack/FittedBox).
+## 3. Conquistas Atuais (O QUE JÁ FUNCIONA)
+* **Motor de Áudio e Bluetooth (Universal):** Intercepta comandos AVRCP universais (Next/Prev/Pause).
+* **Controle Cam Shutter:** Interceptação de botões de Volume Up/Down via `perfect_volume_control` com auto-reset de volume para evitar limites (0% ou 100%).
+* **Lógica de Cliques e Pontuação Local:** O motor físico (via `KeyEventService`) traduz teclas locais para 1, 2 ou 3 cliques, respeitando a pontuação.
+* **UI Imersiva e Gestos:** Tela cheia absoluta. Menu superior flutuante que sobe sozinho ao marcar pontos para despoluir a tela. Relógios gigantes e independentes (Stack/FittedBox).
 
-## 4. Regras de Ouro para o Gemini (Diretrizes de IA)
-* **NUNCA** altere o motor de áudio (`match_audio_handler.dart`) sem extrema necessidade.
-* **NUNCA** reescreva arquivos inteiros ("apagar tudo e colar") a menos que seja arquivo novo. Use "Cirurgia a Laser".
-* O usuário não é programador de ofício. Sempre peça o código-fonte atual da tela ANTES de sugerir modificações e indique a pasta correta.
+## 4. Regras de Ouro para o Gemini
+* **NUNCA** altere o motor de áudio ou os serviços sem extrema necessidade.
+* **NUNCA** reescreva arquivos inteiros. Use "Cirurgia a Laser".
+* Sempre peça o código-fonte atual da tela ANTES de sugerir modificações.
 
 ## 5. Backlog de Pendências (O que falta fazer)
-
-### Grandes (Mudanças de Arquitetura e Fluxo)
-- [ ] **Nova Navegação (Main Menu):** O app não deve abrir direto no Placar. Deve abrir em um Menu Principal com NOVO JOGO, CONFIGURAÇÕES DE PARTIDAS, CONFIGURAÇÕES DO APP, USUÁRIO, ATIVIDADE (Histórico).
-
-### Médias (Funcionalidades de Dados)
-- [ ] **Exportação:** Ajustar layout e exportação dos dados do histórico de partidas.
-- [ ] **Cloud Sync:** Planejar banco de dados em nuvem.
-- [ ] **Modo Foco nas Configurações:** Adicionar opção nas configurações do app para abrir atalho das configurações do sistema operacional (Android/iOS) para o usuário ativar o modo "Não Perturbe".
-
-### Pequenas (Refinamentos UI/UX)
-- [ ] **Novos Relógios:** Criar temporizador específico de "Troca de lado rápida" (ex: 90s) para o intervalo entre o 1º e 2º games do set.
+- [ ] **Nova Navegação (Main Menu):** O app não deve abrir direto no Placar.
+- [ ] **Exportação:** Ajustar layout e exportação dos dados do histórico.
+- [ ] **Modo Foco nas Configurações:** Atalho para ativar "Não Perturbe".
+- [ ] **Novos Relógios:** Temporizador de "Troca de lado rápida" (ex: 90s) para o intervalo entre 1º e 2º games.
