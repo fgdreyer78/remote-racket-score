@@ -34,7 +34,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   @override
   void initState() {
     super.initState();
-    // Avisa o "Cérebro" que o jogo começou (ele vai cuidar do volume e da tela imersiva se o usuário ativou nas configurações)
+    // ACORDA O MOTOR: Entrou no placar, liga o Buraco Negro NATIVO do Kotlin!
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(keyEventServiceProvider).setGameMode(true);
     });
@@ -43,7 +43,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   @override
   void dispose() {
     _clockTimer?.cancel();
-    // Avisa o "Cérebro" que a tela fechou e ele deve liberar o celular
+    // Saiu do placar de vez, solta o volume do celular!
     ref.read(keyEventServiceProvider).setGameMode(false);
     super.dispose();
   }
@@ -196,11 +196,11 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     );
   }
 
-  // --- NAVEGAÇÃO INTELIGENTE (Desliga o Modo Jogo ao sair, Liga ao voltar) ---
+  // --- NAVEGAÇÃO BLINDADA ---
   void _openSettings(BuildContext context) async {
-    ref.read(keyEventServiceProvider).setGameMode(false);
+    ref.read(keyEventServiceProvider).setGameMode(false); // Libera o volume para o Menu de Ajustes
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-    ref.read(keyEventServiceProvider).setGameMode(true);
+    ref.read(keyEventServiceProvider).setGameMode(true);  // Voltou pro placar, prende de novo!
   }
 
   void _openButtonMapping(BuildContext context) async {
@@ -237,7 +237,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     }
   }
 
-  Future<void> _coinToss(BuildContext context) async {
+    Future<void> _coinToss(BuildContext context) async {
     final config = ref.read(gameConfigProvider).valueOrNull;
     if (config == null) return;
     final random = Random();

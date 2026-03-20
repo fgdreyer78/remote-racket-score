@@ -20,7 +20,6 @@ class GameConfig {
     this.breakBetweenGamesSeconds = 0,
     this.breakBetweenSetsSeconds = 0,
     this.timeWarningSound = true,
-    this.lockVolumeButtons = true,
     this.audioOutput = 'speaker',
   });
 
@@ -65,9 +64,6 @@ class GameConfig {
   /// Ao fim do tempo, aviso sonoro (locutor diz TIME / Táim).
   final bool timeWarningSound;
 
-  /// Bloqueia os botões de volume para uso no app.
-  final bool lockVolumeButtons;
-
   /// Rota de saída de áudio para o TTS (speaker, bluetooth, fone de ouvido).
   final String audioOutput;
 
@@ -91,7 +87,6 @@ class GameConfig {
     int? breakBetweenGamesSeconds,
     int? breakBetweenSetsSeconds,
     bool? timeWarningSound,
-    bool? lockVolumeButtons,
     String? audioOutput,
   }) {
     return GameConfig(
@@ -115,7 +110,6 @@ class GameConfig {
       breakBetweenGamesSeconds: breakBetweenGamesSeconds ?? this.breakBetweenGamesSeconds,
       breakBetweenSetsSeconds: breakBetweenSetsSeconds ?? this.breakBetweenSetsSeconds,
       timeWarningSound: timeWarningSound ?? this.timeWarningSound,
-      lockVolumeButtons: lockVolumeButtons ?? this.lockVolumeButtons,
       audioOutput: audioOutput ?? this.audioOutput,
     );
   }
@@ -140,7 +134,6 @@ class GameConfig {
         'breakBetweenGamesSeconds': breakBetweenGamesSeconds,
         'breakBetweenSetsSeconds': breakBetweenSetsSeconds,
         'timeWarningSound': timeWarningSound,
-        'lockVolumeButtons': lockVolumeButtons,
         'audioOutput': audioOutput,
       };
 
@@ -166,7 +159,6 @@ class GameConfig {
       breakBetweenGamesSeconds: json['breakBetweenGamesSeconds'] as int? ?? 0,
       breakBetweenSetsSeconds: json['breakBetweenSetsSeconds'] as int? ?? 0,
       timeWarningSound: json['timeWarningSound'] as bool? ?? true,
-      lockVolumeButtons: json['lockVolumeButtons'] as bool? ?? true,
       audioOutput: json['audioOutput'] as String? ?? 'speaker',
     );
   }

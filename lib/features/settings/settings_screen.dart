@@ -31,7 +31,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late int _breakBetweenGamesSeconds;
   late int _breakBetweenSetsSeconds;
   late bool _timeWarningSound;
-  late bool _lockVolumeButtons;
   late String _audioOutput;
 
   @override
@@ -54,7 +53,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _breakBetweenGamesSeconds = 0;
     _breakBetweenSetsSeconds = 0;
     _timeWarningSound = true;
-    _lockVolumeButtons = true;
     _audioOutput = 'speaker';
   }
 
@@ -82,7 +80,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _breakBetweenGamesSeconds = config.breakBetweenGamesSeconds;
       _breakBetweenSetsSeconds = config.breakBetweenSetsSeconds;
       _timeWarningSound = config.timeWarningSound;
-      _lockVolumeButtons = config.lockVolumeButtons;
       _audioOutput = config.audioOutput;
     });
   }
@@ -122,144 +119,138 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
-      body: ListView(
-        key: ValueKey(_formKey),
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextField(
-            controller: _sportController,
-            decoration: const InputDecoration(
-              labelText: 'Configuração da partida',
-              border: OutlineInputBorder(),
+      body: SafeArea( // Protege contra barras do sistema
+        child: ListView(
+          key: ValueKey(_formKey),
+          // O "bottom: 64" garante que o final da lista (o botão) nunca fique colado no rodapé
+          padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 64),
+          children: [
+            TextField(
+              controller: _sportController,
+              decoration: const InputDecoration(
+                labelText: 'Configuração da partida',
+                border: OutlineInputBorder(),
+              ),
+              style: const TextStyle(color: AppTheme.onSurface),
             ),
-            style: const TextStyle(color: AppTheme.onSurface),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _playerAController,
-            decoration: const InputDecoration(
-              labelText: 'Jogador / Dupla A',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _playerAController,
+              decoration: const InputDecoration(
+                labelText: 'Jogador / Dupla A',
+                border: OutlineInputBorder(),
+              ),
+              style: const TextStyle(color: AppTheme.onSurface),
             ),
-            style: const TextStyle(color: AppTheme.onSurface),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _playerBController,
-            decoration: const InputDecoration(
-              labelText: 'Jogador / Dupla B',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _playerBController,
+              decoration: const InputDecoration(
+                labelText: 'Jogador / Dupla B',
+                border: OutlineInputBorder(),
+              ),
+              style: const TextStyle(color: AppTheme.onSurface),
             ),
-            style: const TextStyle(color: AppTheme.onSurface),
-          ),
-          const SizedBox(height: 24),
-          const Text('Games e Sets', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
-          _numberField('Games para ganhar o set', _gamesToWinSet, (v) => _gamesToWinSet = v),
-          _numberField('Diferença mínima de games', _minGameDifference, (v) => _minGameDifference = v),
-          _numberField('Número de sets (melhor de)', _maxSets, (v) => _maxSets = v),
-          const SizedBox(height: 16),
-          const Text('Tiebreak', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
-          _numberField('Tiebreak ao empatar em', _tiebreakAt, (v) => _tiebreakAt = v),
-          _numberField('Pontos para ganhar tiebreak', _tiebreakPoints, (v) => _tiebreakPoints = v),
-          _numberField('Diferença no tiebreak', _tiebreakDifference, (v) => _tiebreakDifference = v),
-          SwitchListTile(
-            title: const Text('Tiebreak no set decisivo', style: TextStyle(color: AppTheme.onSurface)),
-            value: _useFinalSetTiebreak,
-            onChanged: (v) => setState(() => _useFinalSetTiebreak = v),
-            activeColor: AppTheme.primary,
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
+            const Text('Games e Sets', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
+            _numberField('Games para ganhar o set', _gamesToWinSet, (v) => _gamesToWinSet = v),
+            _numberField('Diferença mínima de games', _minGameDifference, (v) => _minGameDifference = v),
+            _numberField('Número de sets (melhor de)', _maxSets, (v) => _maxSets = v),
+            const SizedBox(height: 16),
+            const Text('Tiebreak', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
+            _numberField('Tiebreak ao empatar em', _tiebreakAt, (v) => _tiebreakAt = v),
+            _numberField('Pontos para ganhar tiebreak', _tiebreakPoints, (v) => _tiebreakPoints = v),
+            _numberField('Diferença no tiebreak', _tiebreakDifference, (v) => _tiebreakDifference = v),
+            SwitchListTile(
+              title: const Text('Tiebreak no set decisivo', style: TextStyle(color: AppTheme.onSurface)),
+              value: _useFinalSetTiebreak,
+              onChanged: (v) => setState(() => _useFinalSetTiebreak = v),
+              activeColor: AppTheme.primary,
+            ),
+            const SizedBox(height: 24),
 
-          // --- COMEÇO DO BLOCO INSERIDO ---
-          const Text('Cronômetro e Tempos', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
-          _numberField('Relógio de saque (segundos)', _serveClockSeconds, (v) => _serveClockSeconds = v, min: 0),
-          _numberField('Intervalo entre games (segundos)', _breakBetweenGamesSeconds, (v) => _breakBetweenGamesSeconds = v, min: 0),
-          _numberField('Intervalo entre sets (segundos)', _breakBetweenSetsSeconds, (v) => _breakBetweenSetsSeconds = v, min: 0),
-          SwitchListTile(
-            title: const Text('Aviso sonoro de tempo esgotado', style: TextStyle(color: AppTheme.onSurface)),
-            value: _timeWarningSound,
-            onChanged: (v) => setState(() => _timeWarningSound = v),
-            activeColor: AppTheme.primary,
-          ),
-          const SizedBox(height: 24),
-          // --- FIM DO BLOCO INSERIDO ---
+            const Text('Cronômetro e Tempos', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
+            _numberField('Relógio de saque (segundos)', _serveClockSeconds, (v) => _serveClockSeconds = v, min: 0),
+            _numberField('Intervalo entre games (segundos)', _breakBetweenGamesSeconds, (v) => _breakBetweenGamesSeconds = v, min: 0),
+            _numberField('Intervalo entre sets (segundos)', _breakBetweenSetsSeconds, (v) => _breakBetweenSetsSeconds = v, min: 0),
+            SwitchListTile(
+              title: const Text('Aviso sonoro de tempo esgotado', style: TextStyle(color: AppTheme.onSurface)),
+              value: _timeWarningSound,
+              onChanged: (v) => setState(() => _timeWarningSound = v),
+              activeColor: AppTheme.primary,
+            ),
+            const SizedBox(height: 24),
 
-          const Text(
-            'Controles de hardware', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
-          SwitchListTile(
-            title: const Text('Bloquear botões de volume', style: TextStyle(color: AppTheme.onSurface)),
-            value: _lockVolumeButtons,
-            onChanged: (v) => setState(() => _lockVolumeButtons = v),
-            activeColor: AppTheme.primary,
-          ),
-          const SizedBox(height: 16),
-          const Text('Saída de áudio do TTS', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: _audioOutput,
-            dropdownColor: AppTheme.surfaceVariant,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
+            const Text('Saída de áudio do TTS', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _audioOutput,
+              dropdownColor: AppTheme.surfaceVariant,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'speaker',
+                  child: Text('Alto-falante do aparelho'),
+                ),
+                DropdownMenuItem(
+                  value: 'bluetooth',
+                  child: Text('Dispositivo Bluetooth (fone/caixa)'),
+                ),
+                DropdownMenuItem(
+                  value: 'headphones',
+                  child: Text('Fone de ouvido (cabo)'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() {
+                  _audioOutput = value;
+                });
+              },
             ),
-            items: const [
-              DropdownMenuItem(
-                value: 'speaker',
-                child: Text('Alto-falante do aparelho'),
+            const SizedBox(height: 16),
+            const Text(
+              'Idioma', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _ttsLanguage,
+              dropdownColor: AppTheme.surfaceVariant,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
               ),
-              DropdownMenuItem(
-                value: 'bluetooth',
-                child: Text('Dispositivo Bluetooth (fone/caixa)'),
-              ),
-              DropdownMenuItem(
-                value: 'headphones',
-                child: Text('Fone de ouvido (cabo)'),
-              ),
-            ],
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() {
-                _audioOutput = value;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Idioma', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: _ttsLanguage,
-            dropdownColor: AppTheme.surfaceVariant,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
+              items: const [
+                DropdownMenuItem(
+                  value: 'pt-BR',
+                  child: Text('Português (Brasil)'),
+                ),
+                DropdownMenuItem(
+                  value: 'en-US',
+                  child: Text('English (US)'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() {
+                  _ttsLanguage = value;
+                });
+              },
             ),
-            items: const [
-              DropdownMenuItem(
-                value: 'pt-BR',
-                child: Text('Português (Brasil)'),
+            
+            const SizedBox(height: 48), // Empurra o botão bem pra baixo
+            
+            FilledButton(
+              onPressed: _save,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: AppTheme.onPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              DropdownMenuItem(
-                value: 'en-US',
-                child: Text('English (US)'),
-              ),
-            ],
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() {
-                _ttsLanguage = value;
-              });
-            },
-          ),
-          const SizedBox(height: 32),
-          FilledButton(
-            onPressed: _save,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: AppTheme.onPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: const Text("Salvar configurações", style: TextStyle(fontWeight: FontWeight.bold)),
             ),
-            child: const Text("Salvar configurações", style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -321,7 +312,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _breakBetweenGamesSeconds = config.breakBetweenGamesSeconds;
       _breakBetweenSetsSeconds = config.breakBetweenSetsSeconds;
       _timeWarningSound = config.timeWarningSound;
-      _lockVolumeButtons = config.lockVolumeButtons;
       _audioOutput = config.audioOutput;
       _formKey++;
     });
@@ -379,7 +369,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       breakBetweenGamesSeconds: _breakBetweenGamesSeconds,
       breakBetweenSetsSeconds: _breakBetweenSetsSeconds,
       timeWarningSound: _timeWarningSound,
-      lockVolumeButtons: _lockVolumeButtons,
       audioOutput: _audioOutput,
     );
     ref.read(gameConfigProvider.notifier).updateConfig(config);
