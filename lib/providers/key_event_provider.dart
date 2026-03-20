@@ -26,6 +26,9 @@ final keyEventServiceProvider = Provider<KeyEventService>((ref) {
       case MappedAction.undo:
         notifier.undo();
         break;
+      case MappedAction.none:
+        // A CORREÇÃO MÁGICA: Se for "Nenhum", apenas cruza os braços e não faz nada!
+        break;
     }
   };
 

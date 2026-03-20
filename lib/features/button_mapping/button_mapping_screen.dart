@@ -7,6 +7,8 @@ import '../../providers/button_mapping_provider.dart';
 import '../../providers/key_event_provider.dart';
 import '../../services/key_event_service.dart';
 
+enum MappingTarget { keyA, keyB, keyUndo }
+
 class ButtonMappingScreen extends ConsumerStatefulWidget {
   const ButtonMappingScreen({super.key});
 
@@ -15,7 +17,7 @@ class ButtonMappingScreen extends ConsumerStatefulWidget {
 }
 
 class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
-  MappedAction? _waitingFor;
+  MappingTarget? _waitingForTarget;
   late final KeyEventService _keyService;
 
   @override
@@ -23,16 +25,16 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
     super.initState();
     _keyService = ref.read(keyEventServiceProvider);
     _keyService.onKeyboardKeyCaptured = (keyId) {
-      if (_waitingFor != null) {
+      if (_waitingForTarget != null) {
         final current = ref.read(buttonMappingProvider).valueOrNull ?? const ButtonMapping();
-        ButtonMapping next;
-        switch (_waitingFor!) {
-          case MappedAction.pointA: next = current.copyWith(keyA: keyId); break;
-          case MappedAction.pointB: next = current.copyWith(keyB: keyId); break;
-          case MappedAction.undo: next = current.copyWith(keyUndo: keyId); break;
+        ButtonMapping next = current;
+        switch (_waitingForTarget!) {
+          case MappingTarget.keyA: next = current.copyWith(keyA: keyId); break;
+          case MappingTarget.keyB: next = current.copyWith(keyB: keyId); break;
+          case MappingTarget.keyUndo: next = current.copyWith(keyUndo: keyId); break;
         }
         ref.read(buttonMappingProvider.notifier).updateMapping(next);
-        setState(() => _waitingFor = null);
+        setState(() => _waitingForTarget = null);
       }
     };
   }
@@ -43,18 +45,13 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
     super.dispose();
   }
 
-  void _clearKeyboardKey(MappedAction action) {
+  void _clearKey(MappingTarget target) {
     final current = ref.read(buttonMappingProvider).valueOrNull ?? const ButtonMapping();
-    ButtonMapping next;
-    switch (action) {
-      case MappedAction.pointA: next = current.copyWith(keyA: null); break;
-      case MappedAction.pointB: next = current.copyWith(keyB: null); break;
-      case MappedAction.undo: next = current.copyWith(keyUndo: null); break;
-    }
-    // Força bruta para deletar
-    if (action == MappedAction.pointA) next = ButtonMapping(keyA: null, keyB: current.keyB, keyUndo: current.keyUndo, enableVolume: current.enableVolume, volUpAction: current.volUpAction, volUpDouble: current.volUpDouble, volUpTriple: current.volUpTriple, volDownAction: current.volDownAction, volDownDouble: current.volDownDouble, volDownTriple: current.volDownTriple, volumeDelayMs: current.volumeDelayMs, enableMedia: current.enableMedia, mediaNextAction: current.mediaNextAction, mediaPrevAction: current.mediaPrevAction, mediaPlayAction: current.mediaPlayAction, enableKeyboard: current.enableKeyboard, keyDoubleA: current.keyDoubleA, keyDoubleB: current.keyDoubleB, keyDoubleUndo: current.keyDoubleUndo, keyTripleA: current.keyTripleA, keyTripleB: current.keyTripleB, keyTripleUndo: current.keyTripleUndo, keyboardDelayMs: current.keyboardDelayMs);
-    if (action == MappedAction.pointB) next = ButtonMapping(keyA: current.keyA, keyB: null, keyUndo: current.keyUndo, enableVolume: current.enableVolume, volUpAction: current.volUpAction, volUpDouble: current.volUpDouble, volUpTriple: current.volUpTriple, volDownAction: current.volDownAction, volDownDouble: current.volDownDouble, volDownTriple: current.volDownTriple, volumeDelayMs: current.volumeDelayMs, enableMedia: current.enableMedia, mediaNextAction: current.mediaNextAction, mediaPrevAction: current.mediaPrevAction, mediaPlayAction: current.mediaPlayAction, enableKeyboard: current.enableKeyboard, keyDoubleA: current.keyDoubleA, keyDoubleB: current.keyDoubleB, keyDoubleUndo: current.keyDoubleUndo, keyTripleA: current.keyTripleA, keyTripleB: current.keyTripleB, keyTripleUndo: current.keyTripleUndo, keyboardDelayMs: current.keyboardDelayMs);
-    if (action == MappedAction.undo) next = ButtonMapping(keyA: current.keyA, keyB: current.keyB, keyUndo: null, enableVolume: current.enableVolume, volUpAction: current.volUpAction, volUpDouble: current.volUpDouble, volUpTriple: current.volUpTriple, volDownAction: current.volDownAction, volDownDouble: current.volDownDouble, volDownTriple: current.volDownTriple, volumeDelayMs: current.volumeDelayMs, enableMedia: current.enableMedia, mediaNextAction: current.mediaNextAction, mediaPrevAction: current.mediaPrevAction, mediaPlayAction: current.mediaPlayAction, enableKeyboard: current.enableKeyboard, keyDoubleA: current.keyDoubleA, keyDoubleB: current.keyDoubleB, keyDoubleUndo: current.keyDoubleUndo, keyTripleA: current.keyTripleA, keyTripleB: current.keyTripleB, keyTripleUndo: current.keyTripleUndo, keyboardDelayMs: current.keyboardDelayMs);
+    ButtonMapping next = current;
+    if (target == MappingTarget.keyA) next = ButtonMapping(keyA: null, keyB: current.keyB, keyUndo: current.keyUndo, enableVolume: current.enableVolume, volUpAction: current.volUpAction, volUpDouble: current.volUpDouble, volUpTriple: current.volUpTriple, volDownAction: current.volDownAction, volDownDouble: current.volDownDouble, volDownTriple: current.volDownTriple, volumeDelayMs: current.volumeDelayMs, enableMedia: current.enableMedia, mediaNextAction: current.mediaNextAction, mediaPrevAction: current.mediaPrevAction, mediaPlayAction: current.mediaPlayAction, enableKeyboard: current.enableKeyboard, keyDoubleA: current.keyDoubleA, keyDoubleB: current.keyDoubleB, keyDoubleUndo: current.keyDoubleUndo, keyTripleA: current.keyTripleA, keyTripleB: current.keyTripleB, keyTripleUndo: current.keyTripleUndo, keyboardDelayMs: current.keyboardDelayMs);
+    else if (target == MappingTarget.keyB) next = ButtonMapping(keyA: current.keyA, keyB: null, keyUndo: current.keyUndo, enableVolume: current.enableVolume, volUpAction: current.volUpAction, volUpDouble: current.volUpDouble, volUpTriple: current.volUpTriple, volDownAction: current.volDownAction, volDownDouble: current.volDownDouble, volDownTriple: current.volDownTriple, volumeDelayMs: current.volumeDelayMs, enableMedia: current.enableMedia, mediaNextAction: current.mediaNextAction, mediaPrevAction: current.mediaPrevAction, mediaPlayAction: current.mediaPlayAction, enableKeyboard: current.enableKeyboard, keyDoubleA: current.keyDoubleA, keyDoubleB: current.keyDoubleB, keyDoubleUndo: current.keyDoubleUndo, keyTripleA: current.keyTripleA, keyTripleB: current.keyTripleB, keyTripleUndo: current.keyTripleUndo, keyboardDelayMs: current.keyboardDelayMs);
+    else if (target == MappingTarget.keyUndo) next = ButtonMapping(keyA: current.keyA, keyB: current.keyB, keyUndo: null, enableVolume: current.enableVolume, volUpAction: current.volUpAction, volUpDouble: current.volUpDouble, volUpTriple: current.volUpTriple, volDownAction: current.volDownAction, volDownDouble: current.volDownDouble, volDownTriple: current.volDownTriple, volumeDelayMs: current.volumeDelayMs, enableMedia: current.enableMedia, mediaNextAction: current.mediaNextAction, mediaPrevAction: current.mediaPrevAction, mediaPlayAction: current.mediaPlayAction, enableKeyboard: current.enableKeyboard, keyDoubleA: current.keyDoubleA, keyDoubleB: current.keyDoubleB, keyDoubleUndo: current.keyDoubleUndo, keyTripleA: current.keyTripleA, keyTripleB: current.keyTripleB, keyTripleUndo: current.keyTripleUndo, keyboardDelayMs: current.keyboardDelayMs);
+    
     ref.read(buttonMappingProvider.notifier).updateMapping(next);
   }
 
@@ -63,7 +60,7 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
     const neonColor = Color(0xFFCCFF00);
     final mappingAsync = ref.watch(buttonMappingProvider);
     final mapping = mappingAsync.valueOrNull ?? const ButtonMapping();
-    final options = [_Option(label: 'Nenhum', value: null), _Option(label: 'Ponto A', value: MappedAction.pointA), _Option(label: 'Ponto B', value: MappedAction.pointB), _Option(label: 'Desfazer', value: MappedAction.undo)];
+    final options = [_Option(label: 'Nenhum', value: MappedAction.none), _Option(label: 'Ponto A', value: MappedAction.pointA), _Option(label: 'Ponto B', value: MappedAction.pointB), _Option(label: 'Desfazer', value: MappedAction.undo)];
 
     return Scaffold(
       backgroundColor: AppTheme.surface,
@@ -71,6 +68,9 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 40),
         children: [
+          if (_waitingForTarget != null) 
+            Container(color: neonColor.withOpacity(0.2), padding: const EdgeInsets.all(16), child: const Text('Pressione o botão no seu teclado agora...', style: TextStyle(color: neonColor, fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center)),
+
           // ================= SESSÃO 1: VOLUME =================
           _buildHeader('Botões de Volume / Shutter', 'Utiliza os botões de volume do celular ou Shutter Bluetooth', mapping.enableVolume, (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(enableVolume: val))),
           if (mapping.enableVolume) ...[
@@ -103,27 +103,26 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
           const Divider(color: Colors.white24, height: 1),
 
           // ================= SESSÃO 3: TECLADO =================
-          _buildHeader('Teclado USB / Bluetooth', 'Utiliza teclas mapeadas manualmente', mapping.enableKeyboard, (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(enableKeyboard: val))),
+          _buildHeader('Teclado USB / Bluetooth', 'Utiliza teclas genéricas mapeadas', mapping.enableKeyboard, (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(enableKeyboard: val))),
           if (mapping.enableKeyboard) ...[
              _ManualMappingTile(
-              label: 'Ponto Jogador/Dupla A', keyId: mapping.keyA, isWaiting: _waitingFor == MappedAction.pointA,
-              onTap: () => setState(() { _waitingFor = MappedAction.pointA; }), onClear: () => _clearKeyboardKey(MappedAction.pointA),
+              label: 'Ponto Jogador/Dupla A', keyId: mapping.keyA, isWaiting: _waitingForTarget == MappingTarget.keyA,
+              onTap: () => setState(() { _waitingForTarget = MappingTarget.keyA; }), onClear: () => _clearKey(MappingTarget.keyA),
               options: options, currentDouble: mapping.keyDoubleA, onDoubleChanged: (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(keyDoubleA: val)),
               currentTriple: mapping.keyTripleA, onTripleChanged: (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(keyTripleA: val)),
             ),
             _ManualMappingTile(
-              label: 'Ponto Jogador/Dupla B', keyId: mapping.keyB, isWaiting: _waitingFor == MappedAction.pointB,
-              onTap: () => setState(() { _waitingFor = MappedAction.pointB; }), onClear: () => _clearKeyboardKey(MappedAction.pointB),
+              label: 'Ponto Jogador/Dupla B', keyId: mapping.keyB, isWaiting: _waitingForTarget == MappingTarget.keyB,
+              onTap: () => setState(() { _waitingForTarget = MappingTarget.keyB; }), onClear: () => _clearKey(MappingTarget.keyB),
               options: options, currentDouble: mapping.keyDoubleB, onDoubleChanged: (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(keyDoubleB: val)),
               currentTriple: mapping.keyTripleB, onTripleChanged: (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(keyTripleB: val)),
             ),
             _ManualMappingTile(
-              label: 'Desfazer última ação', keyId: mapping.keyUndo, isWaiting: _waitingFor == MappedAction.undo,
-              onTap: () => setState(() { _waitingFor = MappedAction.undo; }), onClear: () => _clearKeyboardKey(MappedAction.undo),
+              label: 'Desfazer última ação', keyId: mapping.keyUndo, isWaiting: _waitingForTarget == MappingTarget.keyUndo,
+              onTap: () => setState(() { _waitingForTarget = MappingTarget.keyUndo; }), onClear: () => _clearKey(MappingTarget.keyUndo),
               options: options, currentDouble: mapping.keyDoubleUndo, onDoubleChanged: (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(keyDoubleUndo: val)),
               currentTriple: mapping.keyTripleUndo, onTripleChanged: (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(keyTripleUndo: val)),
             ),
-            if (_waitingFor != null) Padding(padding: const EdgeInsets.all(16), child: Text('Aguardando botão para o Teclado...', style: const TextStyle(color: neonColor, fontWeight: FontWeight.bold))),
             _buildDelaySlider('Intervalo Máximo Entre Cliques', mapping.keyboardDelayMs, (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(keyboardDelayMs: val))),
           ],
         ],
@@ -134,29 +133,17 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
   Widget _buildHeader(String title, String subtitle, bool value, ValueChanged<bool> onChanged) {
     return Container(
       color: Colors.black12,
-      child: SwitchListTile(
-        title: Text(title, style: const TextStyle(color: Color(0xFFCCFF00), fontSize: 18, fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-        value: value, activeColor: const Color(0xFFCCFF00), onChanged: onChanged,
-      ),
+      child: SwitchListTile(title: Text(title, style: const TextStyle(color: Color(0xFFCCFF00), fontSize: 18, fontWeight: FontWeight.bold)), subtitle: Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 13)), value: value, activeColor: const Color(0xFFCCFF00), onChanged: onChanged),
     );
   }
 
   Widget _buildDelaySlider(String title, int value, ValueChanged<int> onChanged) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(color: AppTheme.onSurface, fontWeight: FontWeight.bold)),
-          Row(
-            children: [
-              Expanded(child: Slider(value: value.toDouble(), min: 200, max: 1000, divisions: 8, activeColor: const Color(0xFFCCFF00), onChanged: (v) => onChanged(v.toInt()))),
-              Text('${value}ms', style: const TextStyle(color: Color(0xFFCCFF00), fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(color: AppTheme.onSurface, fontWeight: FontWeight.bold)),
+        Row(children: [Expanded(child: Slider(value: value.toDouble(), min: 200, max: 1000, divisions: 8, activeColor: const Color(0xFFCCFF00), onChanged: (v) => onChanged(v.toInt()))), Text('${value}ms', style: const TextStyle(color: Color(0xFFCCFF00), fontWeight: FontWeight.bold))]),
+      ]),
     );
   }
 }
@@ -167,6 +154,7 @@ class _StaticMappingTile extends StatelessWidget {
   const _StaticMappingTile({required this.label, required this.currentSingle, required this.onSingleChanged, required this.currentDouble, required this.onDoubleChanged, required this.currentTriple, required this.onTripleChanged, required this.options});
   final String label; final MappedAction? currentSingle; final ValueChanged<MappedAction?> onSingleChanged; final MappedAction? currentDouble; final ValueChanged<MappedAction?> onDoubleChanged; final MappedAction? currentTriple; final ValueChanged<MappedAction?> onTripleChanged; final List<_Option> options;
   @override Widget build(BuildContext context) {
+    const neon = Color(0xFFCCFF00);
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: AppTheme.surfaceVariant,
       child: Padding(
@@ -176,30 +164,20 @@ class _StaticMappingTile extends StatelessWidget {
           children: [
             Text(label, style: const TextStyle(color: AppTheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
-            _buildRadioRow('Ação de 1 Clique:', currentSingle, onSingleChanged, options),
-            _buildRadioRow('Ação de 2 Cliques:', currentDouble, onDoubleChanged, options),
-            _buildRadioRow('Ação de 3 Cliques:', currentTriple, onTripleChanged, options),
+            _buildRadioRow('1 Clique:', currentSingle, onSingleChanged, options, neon),
+            _buildRadioRow('2 Cliques:', currentDouble, onDoubleChanged, options, neon),
+            _buildRadioRow('3 Cliques:', currentTriple, onTripleChanged, options, neon),
           ],
         ),
       ),
     );
   }
-  Widget _buildRadioRow(String title, MappedAction? current, ValueChanged<MappedAction?> onChanged, List<_Option> options) {
-    const neon = Color(0xFFCCFF00);
+  Widget _buildRadioRow(String title, MappedAction? current, ValueChanged<MappedAction?> onChanged, List<_Option> options, Color neon) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: TextStyle(color: neon.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.bold)),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: options.map((opt) => Row(mainAxisSize: MainAxisSize.min, children: [
-              Radio<MappedAction?>(value: opt.value, groupValue: current, onChanged: onChanged, activeColor: neon, fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? neon : Colors.white54)),
-              Text(opt.label, style: const TextStyle(color: Colors.white, fontSize: 13)), const SizedBox(width: 8)
-            ])).toList(),
-          ),
-        ),
-        const SizedBox(height: 8),
+        SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: options.map((opt) => Row(mainAxisSize: MainAxisSize.min, children: [Radio<MappedAction?>(value: opt.value, groupValue: current, onChanged: onChanged, activeColor: neon, fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? neon : Colors.white54)), Text(opt.label, style: const TextStyle(color: Colors.white, fontSize: 13)), const SizedBox(width: 8)])).toList())),
       ],
     );
   }
@@ -215,11 +193,7 @@ class _SimpleDropdownTile extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(child: Text(label, style: const TextStyle(color: AppTheme.onSurface, fontWeight: FontWeight.bold))),
-          DropdownButton<MappedAction?>(
-            value: currentValue, dropdownColor: AppTheme.surfaceVariant,
-            items: options.map((opt) => DropdownMenuItem(value: opt.value, child: Text(opt.label, style: const TextStyle(color: Colors.white)))).toList(),
-            onChanged: onChanged,
-          )
+          DropdownButton<MappedAction?>(value: currentValue, dropdownColor: AppTheme.surfaceVariant, items: options.map((opt) => DropdownMenuItem(value: opt.value, child: Text(opt.label, style: const TextStyle(color: Colors.white)))).toList(), onChanged: onChanged)
         ],
       ),
     );
@@ -237,11 +211,11 @@ class _ManualMappingTile extends StatelessWidget {
         children: [
           ListTile(
             title: Text(label, style: const TextStyle(color: AppTheme.onSurface, fontWeight: FontWeight.bold)),
-            subtitle: Text(keyId != null ? 'Código gravado: $keyId' : 'Não mapeado', style: TextStyle(color: Colors.white70)),
+            subtitle: Text(keyId != null ? 'Código gravado: $keyId' : 'Não mapeado', style: const TextStyle(color: Colors.white70)),
             trailing: isWaiting ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: neon)) : keyId != null ? Row(mainAxisSize: MainAxisSize.min, children: [IconButton(icon: const Icon(Icons.delete, color: neon), onPressed: onClear), IconButton(icon: const Icon(Icons.edit, color: neon), onPressed: onTap)]) : IconButton(icon: const Icon(Icons.edit, color: neon), onPressed: onTap),
             onTap: isWaiting ? null : onTap,
           ),
-          Padding(
+          if (keyId != null) Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
