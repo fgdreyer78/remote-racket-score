@@ -11,17 +11,29 @@ class HistoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(matchHistoryProvider);
+
     return Scaffold(
       backgroundColor: AppTheme.surface,
       appBar: AppBar(
         title: const Text(
-          'Histórico de partidas',
-          style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+          'Histórico',
+          style:
+              TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppTheme.primary),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          historyAsync.valueOrNull != null &&
+                  historyAsync.valueOrNull!.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.delete_sweep, color: AppTheme.error),
+                  tooltip: 'Limpar histórico',
+                  onPressed: () => _confirmClear(context, ref),
+                )
+              : const SizedBox.shrink(),
+        ],
       ),
       body: historyAsync.when(
         loading: () => const Center(
@@ -30,193 +42,287 @@ class HistoryScreen extends ConsumerWidget {
         error: (e, _) => Center(
           child: Text(
             'Erro ao carregar histórico',
-            style: Theme.of(context)
-                .textTheme
-                .bodyLarge
-                ?.copyWith(color: AppTheme.error),
+            style: TextStyle(color: AppTheme.error, fontSize: 16),
           ),
         ),
         data: (records) {
           if (records.isEmpty) {
             return const Center(
-              child: Text(
-                'Nenhuma partida registrada ainda.',
-                style: TextStyle(color: AppTheme.onSurface),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.history, color: Colors.white24, size: 64),
+                  SizedBox(height: 16),
+                  Text(
+                    'Nenhuma partida registrada',
+                    style: TextStyle(color: Colors.white38, fontSize: 16),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Finalize uma partida para vê-la aqui',
+                    style: TextStyle(color: Colors.white24, fontSize: 13),
+                  ),
+                ],
               ),
             );
           }
           return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: records.length,
-            itemBuilder: (context, index) {
-              final record = records[index];
-              final summary = _buildSummary(record);
-              final dateStr =
-                  '${record.startedAt.day.toString().padLeft(2, '0')}/${record.startedAt.month.toString().padLeft(2, '0')} '
-                  '${record.startedAt.hour.toString().padLeft(2, '0')}:${record.startedAt.minute.toString().padLeft(2, '0')}';
-              return Card(
-                color: AppTheme.surfaceVariant,
-                child: ListTile(
-                  title: Text(
-                    '${record.playerAName} vs ${record.playerBName}',
-                    style: const TextStyle(color: AppTheme.onSurface, fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    '$dateStr · ${record.configName}\n$summary',
-                    style: TextStyle(
-                      color: AppTheme.onSurface.withOpacity(0.8),
-                      fontSize: 14,
-                    ),
-                  ),
-                  isThreeLine: true,
-                  onTap: () async {
-                    await _showExportDialog(context, record);
-                  },
-                ),
-              );
-            },
+            itemBuilder: (context, index) => _MatchTile(record: records[index]),
           );
         },
       ),
     );
   }
 
-  String _buildSummary(MatchRecord record) {
-    final setGames = <int, _SetScore>{};
-    for (final point in record.points) {
-      final key = point.setNumber;
-      setGames.putIfAbsent(key, () => _SetScore());
-      final score = setGames[key]!;
-      score.registerPoint(point);
-    }
-    int setsA = 0;
-    int setsB = 0;
-    final setStrings = <String>[];
-    final sortedKeys = setGames.keys.toList()..sort();
-    for (final setNumber in sortedKeys) {
-      final score = setGames[setNumber]!;
-      setStrings.add('${score.gamesA}-${score.gamesB}');
-      if (score.gamesA > score.gamesB) {
-        setsA++;
-      } else if (score.gamesB > score.gamesA) {
-        setsB++;
-      }
-    }
-    final setsScore = '$setsA–$setsB';
-    final setsDetail = setStrings.join(', ');
-    return 'Resultado: $setsScore ($setsDetail)';
-  }
-
-  Future<void> _showExportDialog(
-    BuildContext context,
-    MatchRecord record,
-  ) async {
-    final summary = _buildSummary(record);
-    final detailed = _buildDetailed(record);
-    await showDialog<void>(
+  void _confirmClear(BuildContext context, WidgetRef ref) {
+    showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppTheme.surfaceVariant,
-          title: const Text(
-            'Exportar partida',
-            style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceVariant,
+        title: const Text(
+          'Limpar histórico',
+          style:
+              TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Deseja apagar todo o histórico de partidas?',
+          style: TextStyle(color: AppTheme.onSurface),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child:
+                const Text('Cancelar', style: TextStyle(color: Colors.white54)),
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Resumo:',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _summaryText(record, summary),
-                  style: const TextStyle(color: AppTheme.onSurface),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Detalhado:',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(fontWeight: FontWeight.bold, color: AppTheme.primary),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  detailed,
-                  style: const TextStyle(color: AppTheme.onSurface),
-                ),
-              ],
-            ),
+          TextButton(
+            onPressed: () {
+              ref.read(matchHistoryProvider.notifier).clear();
+              Navigator.of(ctx).pop();
+            },
+            child:
+                const Text('Apagar', style: TextStyle(color: AppTheme.error)),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Fechar', style: TextStyle(color: AppTheme.primary)),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
-  }
-
-  String _summaryText(MatchRecord record, String summary) {
-    return 'Configuração da partida: ${record.configName}\n'
-        '${record.playerAName} vs ${record.playerBName}\n'
-        '$summary';
-  }
-
-  String _buildDetailed(MatchRecord record) {
-    final buffer = StringBuffer();
-    buffer.writeln(_summaryText(record, _buildSummary(record)));
-    buffer.writeln();
-    final map = <int, Map<int, List<PointEvent>>>{};
-    for (final p in record.points) {
-      map.putIfAbsent(p.setNumber, () => <int, List<PointEvent>>{});
-      final byGame = map[p.setNumber]!;
-      byGame.putIfAbsent(p.gameNumber, () => <PointEvent>[]);
-      byGame[p.gameNumber]!.add(p);
-    }
-    final setNumbers = map.keys.toList()..sort();
-    for (final setNumber in setNumbers) {
-      buffer.writeln('Set $setNumber:');
-      final games = map[setNumber]!;
-      final gameNumbers = games.keys.toList()..sort();
-      for (final gameNumber in gameNumbers) {
-        final points = games[gameNumber]!;
-        final isTiebreak = points.any((p) => p.isTiebreak);
-        final label = isTiebreak ? 'Tiebreak' : 'Game $gameNumber';
-        final seq = points
-            .map((p) => p.scorerIsA ? 'A' : 'B')
-            .join(', ');
-        buffer.writeln('  $label: $seq');
-      }
-      buffer.writeln();
-    }
-    return buffer.toString();
   }
 }
 
-class _SetScore {
-  int gamesA = 0;
-  int gamesB = 0;
+class _MatchTile extends StatelessWidget {
+  const _MatchTile({required this.record});
 
-  int _currentGameNumber = 1;
-  bool _lastWinnerIsA = false;
+  final MatchRecord record;
 
-  void registerPoint(PointEvent point) {
-    if (point.gameNumber != _currentGameNumber) {
-      if (_lastWinnerIsA) {
+  /// Reconstrói o placar final a partir da lista de pontos.
+  _ScoreSummary get _summary {
+    int setsA = 0;
+    int setsB = 0;
+    int gamesA = 0;
+    int gamesB = 0;
+    int currentSet = 1;
+    int setsToWin = record.configSnapshot.gamesToWinSet;
+    int maxSets = record.configSnapshot.maxSets;
+    int tiebreakAt = record.configSnapshot.tiebreakAt;
+    int minDiff = record.configSnapshot.minGameDifference;
+
+    // Rastreamento de games por set
+    int setGamesA = 0;
+    int setGamesB = 0;
+
+    for (final point in record.points) {
+      if (point.scorerIsA) {
         gamesA++;
+        setGamesA++;
       } else {
         gamesB++;
+        setGamesB++;
       }
-      _currentGameNumber = point.gameNumber;
+
+      // Verifica se alguém ganhou o set
+      final canWinSet = setGamesA >= setsToWin || setGamesB >= setsToWin;
+      final hasDiff = (setGamesA - setGamesB).abs() >= minDiff;
+      final maxSetsReached = setGamesA >= tiebreakAt && setGamesB >= tiebreakAt;
+
+      if (canWinSet && hasDiff || maxSetsReached) {
+        if (setGamesA > setGamesB) {
+          setsA++;
+        } else {
+          setsB++;
+        }
+        // Próximo set
+        setGamesA = 0;
+        setGamesB = 0;
+        currentSet++;
+
+        // Se alguém já ganhou mais da metade dos sets, para
+        if (setsA > maxSets ~/ 2 || setsB > maxSets ~/ 2) break;
+      }
     }
-    _lastWinnerIsA = point.scorerIsA;
+
+    return _ScoreSummary(setsA: setsA, setsB: setsB);
   }
+
+  String _formatDate(DateTime dt) {
+    final d = dt.day.toString().padLeft(2, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final y = dt.year;
+    final h = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    return '$d/$m/$y $h:$min';
+  }
+
+  String _formatDuration() {
+    final diff = record.finishedAt.difference(record.startedAt);
+    final min = diff.inMinutes;
+    if (min < 60) return '${min}min';
+    final h = diff.inHours;
+    final m = min.remainder(60);
+    return '${h}h${m > 0 ? ' ${m}min' : ''}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = _summary;
+
+    return Card(
+      color: AppTheme.surfaceVariant,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cabeçalho: config name e data
+            Row(
+              children: [
+                Icon(Icons.sports_tennis, color: AppTheme.primary, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    record.configName,
+                    style: const TextStyle(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                Text(
+                  _formatDate(record.startedAt),
+                  style: const TextStyle(color: Colors.white38, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Placar final
+            Row(
+              children: [
+                // Jogador A
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        record.playerAName,
+                        style: TextStyle(
+                          color: summary.setsA > summary.setsB
+                              ? AppTheme.primary
+                              : AppTheme.onSurface,
+                          fontWeight: summary.setsA > summary.setsB
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          fontSize: 16,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Placar
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${summary.setsA}',
+                        style: TextStyle(
+                          color: summary.setsA > summary.setsB
+                              ? AppTheme.primary
+                              : AppTheme.onSurface,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 28,
+                        ),
+                      ),
+                      const Text(
+                        ' x ',
+                        style: TextStyle(color: Colors.white38, fontSize: 20),
+                      ),
+                      Text(
+                        '${summary.setsB}',
+                        style: TextStyle(
+                          color: summary.setsB > summary.setsA
+                              ? AppTheme.primary
+                              : AppTheme.onSurface,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 28,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Jogador B
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        record.playerBName,
+                        style: TextStyle(
+                          color: summary.setsB > summary.setsA
+                              ? AppTheme.primary
+                              : AppTheme.onSurface,
+                          fontWeight: summary.setsB > summary.setsA
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          fontSize: 16,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Rodapé: duração
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.timer, color: Colors.white24, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  _formatDuration(),
+                  style: const TextStyle(color: Colors.white24, fontSize: 12),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScoreSummary {
+  const _ScoreSummary({required this.setsA, required this.setsB});
+  final int setsA;
+  final int setsB;
 }

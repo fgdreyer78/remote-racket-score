@@ -25,53 +25,127 @@ class KeyEventService with WidgetsBindingObserver {
   // A LINHA DE TELEFONE COM O KOTLIN
   static const platform = MethodChannel('com.remoteracketscore/volume');
 
-  String? _pendingSource; 
+  String? _pendingSource;
   MappedAction? _pendingAction;
   MappedAction? _pendingDouble;
   MappedAction? _pendingTriple;
   int _clickCount = 0;
   Timer? _clickTimer;
 
+  // Controle de intervalo mínimo entre pontos (anti-duplicata) por método
+  int _volumeLastFiredMs = 0;
+  int _mediaLastFiredMs = 0;
+  int _keyboardLastFiredMs = 0;
+
   // O Dart atende o telefone do Kotlin aqui!
   void _setupMethodChannel() {
     platform.setMethodCallHandler((call) async {
       if (!_isGameMode || !mapping.enableVolume) return;
-      
+
       if (call.method == 'volumeUp') {
-        _registerClick('volUp', mapping.volUpAction, mapping.volUpDouble, mapping.volUpTriple, mapping.volumeDelayMs);
+        _registerClick(
+          'volUp',
+          mapping.volUpAction,
+          mapping.volUpDouble,
+          mapping.volUpTriple,
+          mapping.volumeDelayMs,
+          _MethodType.volume,
+        );
       } else if (call.method == 'volumeDown') {
-        _registerClick('volDown', mapping.volDownAction, mapping.volDownDouble, mapping.volDownTriple, mapping.volumeDelayMs);
+        _registerClick(
+          'volDown',
+          mapping.volDownAction,
+          mapping.volDownDouble,
+          mapping.volDownTriple,
+          mapping.volumeDelayMs,
+          _MethodType.volume,
+        );
       }
     });
   }
 
-  void _registerClick(String source, MappedAction action, MappedAction dbl, MappedAction trpl, int delayMs) {
+  void _registerClick(
+    String source,
+    MappedAction action,
+    MappedAction dbl,
+    MappedAction trpl,
+    int delayMs,
+    _MethodType methodType,
+  ) {
     if (action == MappedAction.none) return;
-    
+
     if (_pendingSource != null && _pendingSource != source) _executePending();
-    
-    _pendingSource = source; _pendingAction = action; _pendingDouble = dbl; _pendingTriple = trpl; _clickCount++;
-    
+
+    _pendingSource = source;
+    _pendingAction = action;
+    _pendingDouble = dbl;
+    _pendingTriple = trpl;
+    _pendingMethodType = methodType;
+    _clickCount++;
+
     _clickTimer?.cancel();
     _clickTimer = Timer(Duration(milliseconds: delayMs), _executePending);
   }
 
+  _MethodType _pendingMethodType = _MethodType.volume;
+
   void _executePending() {
     if (_clickCount == 1) {
-       _fire(_pendingAction);
+      _fire(_pendingAction, _pendingMethodType);
     } else if (_clickCount == 2) {
-       if (_pendingDouble != null && _pendingDouble != MappedAction.none) _fire(_pendingDouble);
-       else { _fire(_pendingAction); _fire(_pendingAction); }
+      if (_pendingDouble != null && _pendingDouble != MappedAction.none) {
+        _fire(_pendingDouble, _pendingMethodType);
+      } else {
+        _fire(_pendingAction, _pendingMethodType);
+        _fire(_pendingAction, _pendingMethodType);
+      }
     } else if (_clickCount >= 3) {
-       if (_pendingTriple != null && _pendingTriple != MappedAction.none) _fire(_pendingTriple);
-       else if (_pendingDouble != null && _pendingDouble != MappedAction.none) { _fire(_pendingDouble); _fire(_pendingAction); }
-       else { _fire(_pendingAction); _fire(_pendingAction); _fire(_pendingAction); }
+      if (_pendingTriple != null && _pendingTriple != MappedAction.none) {
+        _fire(_pendingTriple, _pendingMethodType);
+      } else if (_pendingDouble != null && _pendingDouble != MappedAction.none) {
+        _fire(_pendingDouble, _pendingMethodType);
+        _fire(_pendingAction, _pendingMethodType);
+      } else {
+        _fire(_pendingAction, _pendingMethodType);
+        _fire(_pendingAction, _pendingMethodType);
+        _fire(_pendingAction, _pendingMethodType);
+      }
     }
-    _clickCount = 0; _pendingSource = null;
+    _clickCount = 0;
+    _pendingSource = null;
   }
 
-  void _fire(MappedAction? action) {
-     if (action != null && action != MappedAction.none) onMappedAction?.call(action);
+  void _fire(MappedAction? action, _MethodType methodType) {
+    if (action == null || action == MappedAction.none) return;
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    // Verifica o intervalo mínimo entre pontos para o método correspondente
+    switch (methodType) {
+      case _MethodType.volume:
+        if (mapping.volumeMinIntervalMs > 0 &&
+            (now - _volumeLastFiredMs) < mapping.volumeMinIntervalMs) {
+          return; // Bloqueado pelo intervalo mínimo
+        }
+        _volumeLastFiredMs = now;
+        break;
+      case _MethodType.media:
+        if (mapping.mediaMinIntervalMs > 0 &&
+            (now - _mediaLastFiredMs) < mapping.mediaMinIntervalMs) {
+          return; // Bloqueado pelo intervalo mínimo
+        }
+        _mediaLastFiredMs = now;
+        break;
+      case _MethodType.keyboard:
+        if (mapping.keyboardMinIntervalMs > 0 &&
+            (now - _keyboardLastFiredMs) < mapping.keyboardMinIntervalMs) {
+          return; // Bloqueado pelo intervalo mínimo
+        }
+        _keyboardLastFiredMs = now;
+        break;
+    }
+
+    onMappedAction?.call(action);
   }
 
   @override
@@ -95,25 +169,32 @@ class KeyEventService with WidgetsBindingObserver {
   Future<void> startListening() async {
     stopListening();
     HardwareKeyboard.instance.addHandler(_keyboardHandler);
-    
+
     // Mídia continua funcionando linda e bela
     if (mapping.enableMedia) {
       _mediaSub = globalAudioHandler.commandStream.listen((command) {
-        if (command == MediaCommand.next && mapping.mediaNextAction != MappedAction.none) onMappedAction?.call(mapping.mediaNextAction);
-        else if (command == MediaCommand.previous && mapping.mediaPrevAction != MappedAction.none) onMappedAction?.call(mapping.mediaPrevAction);
-        else if ((command == MediaCommand.play || command == MediaCommand.pause) && mapping.mediaPlayAction != MappedAction.none) onMappedAction?.call(mapping.mediaPlayAction);
+        if (command == MediaCommand.next && mapping.mediaNextAction != MappedAction.none) {
+          _fire(mapping.mediaNextAction, _MethodType.media);
+        } else if (command == MediaCommand.previous && mapping.mediaPrevAction != MappedAction.none) {
+          _fire(mapping.mediaPrevAction, _MethodType.media);
+        } else if ((command == MediaCommand.play || command == MediaCommand.pause) &&
+            mapping.mediaPlayAction != MappedAction.none) {
+          _fire(mapping.mediaPlayAction, _MethodType.media);
+        }
       });
     }
   }
 
   void stopListening() {
     HardwareKeyboard.instance.removeHandler(_keyboardHandler);
-    _clickTimer?.cancel(); _mediaSub?.cancel();
+    _clickTimer?.cancel();
+    _mediaSub?.cancel();
     platform.invokeMethod('setGameMode', false); // Segurança extra
   }
 
   void updateMapping(ButtonMapping newMapping) {
-    mapping = newMapping; startListening(); 
+    mapping = newMapping;
+    startListening();
   }
 
   int? _lastProcessedKeyId;
@@ -123,31 +204,35 @@ class KeyEventService with WidgetsBindingObserver {
     final keyId = event.logicalKey.keyId;
     if (keyId == 0) return false;
 
-    if (event is! KeyDownEvent) return false; 
-    
+    if (event is! KeyDownEvent) return false;
+
     // Mapeamento manual e uso normal do Teclado USB/Bluetooth
     if (onKeyboardKeyCaptured != null) {
       onKeyboardKeyCaptured!(keyId);
-      return true; 
+      return true;
     }
 
     if (!mapping.enableKeyboard) return false;
 
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (keyId == _lastProcessedKeyId && (now - _lastProcessedTime) < 150) return false; 
-    _lastProcessedKeyId = keyId; _lastProcessedTime = now;
+    if (keyId == _lastProcessedKeyId && (now - _lastProcessedTime) < 150) return false;
+    _lastProcessedKeyId = keyId;
+    _lastProcessedTime = now;
 
     if (mapping.keyA != null && keyId == mapping.keyA) {
-      _registerClick('keyA', MappedAction.pointA, mapping.keyDoubleA, mapping.keyTripleA, mapping.keyboardDelayMs);
+      _registerClick('keyA', MappedAction.pointA, mapping.keyDoubleA, mapping.keyTripleA, mapping.keyboardDelayMs, _MethodType.keyboard);
       return true;
     } else if (mapping.keyB != null && keyId == mapping.keyB) {
-      _registerClick('keyB', MappedAction.pointB, mapping.keyDoubleB, mapping.keyTripleB, mapping.keyboardDelayMs);
+      _registerClick('keyB', MappedAction.pointB, mapping.keyDoubleB, mapping.keyTripleB, mapping.keyboardDelayMs, _MethodType.keyboard);
       return true;
     } else if (mapping.keyUndo != null && keyId == mapping.keyUndo) {
-      _registerClick('keyUndo', MappedAction.undo, mapping.keyDoubleUndo, mapping.keyTripleUndo, mapping.keyboardDelayMs);
+      _registerClick('keyUndo', MappedAction.undo, mapping.keyDoubleUndo, mapping.keyTripleUndo, mapping.keyboardDelayMs, _MethodType.keyboard);
       return true;
     }
-    
+
     return false;
   }
 }
+
+/// Identifica qual método de entrada originou o evento, para aplicar o intervalo mínimo correto
+enum _MethodType { volume, media, keyboard }

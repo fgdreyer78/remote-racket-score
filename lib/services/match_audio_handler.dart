@@ -10,7 +10,13 @@ late MatchAudioHandler globalAudioHandler;
 class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
   final _commandController = StreamController<MediaCommand>.broadcast();
   
-  final _player = AudioPlayer(); 
+  // O PLAYER FANTASMA: Dizemos ao just_audio para não avisar o Android
+  // sobre atributos de mídia e não lidar com interrupções do sistema.
+  final _player = AudioPlayer(
+    handleInterruptions: false,
+    androidApplyAudioAttributes: false,
+    handleAudioSessionActivation: false,
+  ); 
 
   Stream<MediaCommand> get commandStream => _commandController.stream;
 
@@ -20,9 +26,19 @@ class MatchAudioHandler extends BaseAudioHandler with SeekHandler {
 
   Future<void> _init() async {
     final session = await AudioSession.instance;
-    await session.configure(AudioSessionConfiguration.music());
+    
+    // A MÁGICA DA CAMUFLAGEM CORRIGIDA: Não usamos mais .music()
+    // Configuramos como 'game' e omitimos o pedido de foco de áudio 
+    // para o Android não atrelar a barra de volume à nossa sessão.
+    await session.configure(const AudioSessionConfiguration(
+      avAudioSessionCategory: AVAudioSessionCategory.playback,
+      androidAudioAttributes: AndroidAudioAttributes(
+        contentType: AndroidAudioContentType.unknown,
+        usage: AndroidAudioUsage.game, // Rebaixa a prioridade do app no sistema
+      ),
+      // Parâmetros inválidos removidos: o padrão agora é não brigar pelo sistema
+    ));
 
-    // A CORREÇÃO ESTÁ AQUI: "duration:" adicionado para agradar o compilador!
     await _player.setAudioSource(
       SilenceAudioSource(duration: const Duration(hours: 24)),
     );

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
 
 import 'core/app_theme.dart';
-import 'features/score/score_screen.dart';
+import 'features/home/home_screen.dart';
 import 'services/match_audio_handler.dart';
 
 void main() async {
@@ -27,7 +27,7 @@ void main() async {
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]);
-  
+
   runApp(const ProviderScope(child: RemoteRacketScoreApp()));
 }
 
@@ -40,7 +40,7 @@ class RemoteRacketScoreApp extends StatelessWidget {
       title: 'Remote Racket Score',
       theme: AppTheme.dark,
       debugShowCheckedModeBanner: false,
-      home: const ScoreScreen(),
+      home: const HomeScreen(),
     );
   }
 }

@@ -1,7 +1,6 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:math';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_theme.dart';
@@ -16,6 +15,7 @@ import '../../providers/tts_provider.dart';
 import '../history/history_screen.dart';
 import '../button_mapping/button_mapping_screen.dart';
 import '../settings/settings_screen.dart';
+import '../home/home_screen.dart';
 
 class ScoreScreen extends ConsumerStatefulWidget {
   const ScoreScreen({super.key});
@@ -28,8 +28,13 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   int? _clockRemaining;
   String _clockLabel = '';
   Timer? _clockTimer;
-  
+
   bool _isMenuVisible = true;
+
+  // Flash visual: qual jogador está piscando (null = nenhum)
+  bool? _flashingIsA;
+  bool _flashState = false; // true = invertido, false = normal
+  Timer? _flashTimer;
 
   @override
   void initState() {
@@ -43,6 +48,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _flashTimer?.cancel();
     // Saiu do placar de vez, solta o volume do celular!
     ref.read(keyEventServiceProvider).setGameMode(false);
     super.dispose();
@@ -73,34 +79,54 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     });
   }
 
-  bool _isMatchNotStarted(ScoreState score) {
-    return score.pointsA == 0 &&
-        score.pointsB == 0 &&
-        score.gamesA == 0 &&
-        score.gamesB == 0 &&
-        score.setsA == 0 &&
-        score.setsB == 0 &&
-        !score.isTiebreak &&
-        score.history.isEmpty;
+  /// Inicia o flash visual para o jogador que marcou ponto
+  void _startFlash(bool isA, GameConfig config) {
+    if (!config.pointFlashEnabled) return;
+    _flashTimer?.cancel();
+    final intervalMs = (1000 / config.pointFlashFrequencyHz).round();
+    final totalMs = config.pointFlashDurationMs;
+    int elapsed = 0;
+
+    setState(() {
+      _flashingIsA = isA;
+      _flashState = true;
+    });
+
+    _flashTimer = Timer.periodic(Duration(milliseconds: intervalMs), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      elapsed += intervalMs;
+      if (elapsed >= totalMs) {
+        timer.cancel();
+        setState(() {
+          _flashingIsA = null;
+          _flashState = false;
+        });
+        return;
+      }
+      setState(() => _flashState = !_flashState);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     ref.watch(keyEventServiceProvider);
-    
+
     ref.listen<AsyncValue<ButtonMapping>>(buttonMappingProvider, (prev, next) {
       next.whenData((mapping) {
         ref.read(keyEventServiceProvider).updateMapping(mapping);
       });
     });
-    
+
     final score = ref.watch(scoreStateProvider);
     final configAsync = ref.watch(gameConfigProvider);
     final config = configAsync.valueOrNull;
 
     ref.listen<ScoreState>(scoreStateProvider, (prev, next) {
       if (config == null || prev == null || next == prev) return;
-      
+
       if (_isMenuVisible) {
         setState(() => _isMenuVisible = false);
       }
@@ -109,7 +135,16 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       final gameEnded = (next.gamesA + next.gamesB) > (prev.gamesA + prev.gamesB) && !next.isTiebreak;
       final pointAdded = next.pointsA != prev.pointsA || next.pointsB != prev.pointsB ||
           next.tiebreakPointsA != prev.tiebreakPointsA || next.tiebreakPointsB != prev.tiebreakPointsB;
-      
+
+      // Detecta quem marcou o ponto para o flash
+      if (pointAdded) {
+        final scorerIsA = (next.pointsA != prev.pointsA) ||
+            (next.tiebreakPointsA != prev.tiebreakPointsA) ||
+            (next.gamesA != prev.gamesA && next.pointsA == 0) ||
+            (next.setsA != prev.setsA);
+        _startFlash(scorerIsA, config);
+      }
+
       final totalGames = next.gamesA + next.gamesB;
       final isOddGame = totalGames % 2 != 0;
       final isFirstGame = totalGames == 1;
@@ -124,7 +159,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       }
     });
 
-    const neonColor = Color(0xFFCCFF00); 
+    const neonColor = Color(0xFFCCFF00);
 
     return Scaffold(
       backgroundColor: AppTheme.surface,
@@ -132,9 +167,9 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         behavior: HitTestBehavior.opaque,
         onVerticalDragUpdate: (details) {
           if (details.primaryDelta! > 2 && !_isMenuVisible) {
-            setState(() => _isMenuVisible = true); 
+            setState(() => _isMenuVisible = true);
           } else if (details.primaryDelta! < -2 && _isMenuVisible) {
-            setState(() => _isMenuVisible = false); 
+            setState(() => _isMenuVisible = false);
           }
         },
         child: config == null
@@ -148,7 +183,9 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                       playerBName: config.playerBName,
                       ttsLanguage: config.ttsLanguage,
                       clockLabel: _clockLabel,
-                      clockRemaining: _clockRemaining, 
+                      clockRemaining: _clockRemaining,
+                      flashingIsA: _flashingIsA,
+                      flashState: _flashState,
                       onPointA: () {
                         if (!score.matchOver) ref.read(scoreStateProvider.notifier).addPointA();
                       },
@@ -164,8 +201,8 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                     duration: const Duration(milliseconds: 700),
                     curve: Curves.easeInOutCubic,
                     child: Container(
-                      color: AppTheme.surface.withOpacity(0.95), 
-                      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top), 
+                      color: AppTheme.surface.withOpacity(0.95),
+                      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: Row(
@@ -183,6 +220,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                                 IconButton(icon: const Icon(Icons.refresh, color: neonColor), tooltip: 'Nova partida', onPressed: () => _confirmReset(context)),
                                 IconButton(icon: const Icon(Icons.sports_tennis, color: neonColor), tooltip: 'Configurações', onPressed: () => _openSettings(context)),
                                 IconButton(icon: const Icon(Icons.settings_input_antenna, color: neonColor), tooltip: 'Mapear botões', onPressed: () => _openButtonMapping(context)),
+                                IconButton(icon: const Icon(Icons.home, color: neonColor), tooltip: 'Menu principal', onPressed: () => _goHome(context)),
                               ],
                             )
                           ],
@@ -191,16 +229,16 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                     ),
                   ),
                 ],
-            ),
+              ),
       ),
     );
   }
 
   // --- NAVEGAÇÃO BLINDADA ---
   void _openSettings(BuildContext context) async {
-    ref.read(keyEventServiceProvider).setGameMode(false); // Libera o volume para o Menu de Ajustes
+    ref.read(keyEventServiceProvider).setGameMode(false);
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-    ref.read(keyEventServiceProvider).setGameMode(true);  // Voltou pro placar, prende de novo!
+    ref.read(keyEventServiceProvider).setGameMode(true);
   }
 
   void _openButtonMapping(BuildContext context) async {
@@ -213,6 +251,14 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     ref.read(keyEventServiceProvider).setGameMode(false);
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
     ref.read(keyEventServiceProvider).setGameMode(true);
+  }
+
+  void _goHome(BuildContext context) {
+    ref.read(keyEventServiceProvider).setGameMode(false);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (route) => false,
+    );
   }
   // -------------------------------------------------------------------------
 
@@ -233,11 +279,11 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         ) ?? false;
     if (shouldReset) {
       ref.read(scoreStateProvider.notifier).reset();
-      setState(() => _isMenuVisible = true); 
+      setState(() => _isMenuVisible = true);
     }
   }
 
-    Future<void> _coinToss(BuildContext context) async {
+  Future<void> _coinToss(BuildContext context) async {
     final config = ref.read(gameConfigProvider).valueOrNull;
     if (config == null) return;
     final random = Random();
@@ -284,6 +330,8 @@ class _ScoreContent extends StatelessWidget {
     required this.ttsLanguage,
     required this.clockLabel,
     required this.clockRemaining,
+    required this.flashingIsA,
+    required this.flashState,
     required this.onPointA,
     required this.onPointB,
     required this.onUndo,
@@ -295,6 +343,8 @@ class _ScoreContent extends StatelessWidget {
   final String ttsLanguage;
   final String clockLabel;
   final int? clockRemaining;
+  final bool? flashingIsA;
+  final bool flashState;
   final VoidCallback onPointA;
   final VoidCallback onPointB;
   final VoidCallback onUndo;
@@ -356,11 +406,27 @@ class _ScoreContent extends StatelessWidget {
     final bool hasPoints = !score.matchOver && (pA != '0' || pB != '0');
     final bool hasSets = score.setsA > 0 || score.setsB > 0;
 
-    const neonColor = Color(0xFFCCFF00); 
-    const whiteColor = Colors.white; 
-    const grayColor = Color(0xFF9E9E9E); 
+    const neonColor = Color(0xFFCCFF00);
+    const whiteColor = Colors.white;
+    const grayColor = Color(0xFF9E9E9E);
 
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+
+    // Determina cores de flash para cada jogador
+    Color bgA = Colors.transparent;
+    Color bgB = Colors.transparent;
+    Color pointColorA = neonColor;
+    Color pointColorB = neonColor;
+
+    if (flashingIsA != null && flashState) {
+      if (flashingIsA == true) {
+        bgA = neonColor;
+        pointColorA = AppTheme.surface;
+      } else {
+        bgB = neonColor;
+        pointColorB = AppTheme.surface;
+      }
+    }
 
     Widget content;
     if (isPortrait) {
@@ -369,49 +435,63 @@ class _ScoreContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
-            height: 160, 
+            height: 160,
             child: clockRemaining != null ? _buildBigClockPortrait(neonColor) : null,
           ),
 
           GestureDetector(
-            behavior: HitTestBehavior.opaque, 
+            behavior: HitTestBehavior.opaque,
             onTap: onPointA,
             onLongPress: onUndo,
-            child: _buildPlayer(
-              isPortrait: isPortrait,
-              name: playerAName,
-              isServer: score.serverIsA,
-              previousSetsGames: score.previousSetsGamesA,
-              games: score.gamesA,
-              points: pA,
-              hasSets: hasSets,
-              hasGames: hasGames,
-              hasPoints: hasPoints,
-              neonColor: neonColor,
-              whiteColor: whiteColor,
-              grayColor: grayColor,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 60),
+              decoration: BoxDecoration(
+                color: bgA,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: _buildPlayer(
+                isPortrait: isPortrait,
+                name: playerAName,
+                isServer: score.serverIsA,
+                previousSetsGames: score.previousSetsGamesA,
+                games: score.gamesA,
+                points: pA,
+                hasSets: hasSets,
+                hasGames: hasGames,
+                hasPoints: hasPoints,
+                neonColor: pointColorA,
+                whiteColor: flashingIsA == true && flashState ? AppTheme.surface : whiteColor,
+                grayColor: flashingIsA == true && flashState ? AppTheme.surface : grayColor,
+              ),
             ),
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           GestureDetector(
-            behavior: HitTestBehavior.opaque, 
+            behavior: HitTestBehavior.opaque,
             onTap: onPointB,
             onLongPress: onUndo,
-            child: _buildPlayer(
-              isPortrait: isPortrait,
-              name: playerBName,
-              isServer: !score.serverIsA,
-              previousSetsGames: score.previousSetsGamesB,
-              games: score.gamesB,
-              points: pB,
-              hasSets: hasSets,
-              hasGames: hasGames,
-              hasPoints: hasPoints,
-              neonColor: neonColor,
-              whiteColor: whiteColor,
-              grayColor: grayColor,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 60),
+              decoration: BoxDecoration(
+                color: bgB,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: _buildPlayer(
+                isPortrait: isPortrait,
+                name: playerBName,
+                isServer: !score.serverIsA,
+                previousSetsGames: score.previousSetsGamesB,
+                games: score.gamesB,
+                points: pB,
+                hasSets: hasSets,
+                hasGames: hasGames,
+                hasPoints: hasPoints,
+                neonColor: pointColorB,
+                whiteColor: flashingIsA == false && flashState ? AppTheme.surface : whiteColor,
+                grayColor: flashingIsA == false && flashState ? AppTheme.surface : grayColor,
+              ),
             ),
           ),
         ],
@@ -421,47 +501,61 @@ class _ScoreContent extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Column(
-            mainAxisAlignment: MainAxisAlignment.center, 
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               GestureDetector(
-                behavior: HitTestBehavior.opaque, 
+                behavior: HitTestBehavior.opaque,
                 onTap: onPointA,
                 onLongPress: onUndo,
-                child: _buildPlayer(
-                  isPortrait: isPortrait,
-                  name: playerAName,
-                  isServer: score.serverIsA,
-                  previousSetsGames: score.previousSetsGamesA,
-                  games: score.gamesA,
-                  points: pA,
-                  hasSets: hasSets,
-                  hasGames: hasGames,
-                  hasPoints: hasPoints,
-                  neonColor: neonColor,
-                  whiteColor: whiteColor,
-                  grayColor: grayColor,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 60),
+                  decoration: BoxDecoration(
+                    color: bgA,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: _buildPlayer(
+                    isPortrait: isPortrait,
+                    name: playerAName,
+                    isServer: score.serverIsA,
+                    previousSetsGames: score.previousSetsGamesA,
+                    games: score.gamesA,
+                    points: pA,
+                    hasSets: hasSets,
+                    hasGames: hasGames,
+                    hasPoints: hasPoints,
+                    neonColor: pointColorA,
+                    whiteColor: flashingIsA == true && flashState ? AppTheme.surface : whiteColor,
+                    grayColor: flashingIsA == true && flashState ? AppTheme.surface : grayColor,
+                  ),
                 ),
               ),
-              
-              const SizedBox(height: 80), 
-              
+
+              const SizedBox(height: 80),
+
               GestureDetector(
-                behavior: HitTestBehavior.opaque, 
+                behavior: HitTestBehavior.opaque,
                 onTap: onPointB,
                 onLongPress: onUndo,
-                child: _buildPlayer(
-                  isPortrait: isPortrait,
-                  name: playerBName,
-                  isServer: !score.serverIsA,
-                  previousSetsGames: score.previousSetsGamesB,
-                  games: score.gamesB,
-                  points: pB,
-                  hasSets: hasSets,
-                  hasGames: hasGames,
-                  hasPoints: hasPoints,
-                  neonColor: neonColor,
-                  whiteColor: whiteColor,
-                  grayColor: grayColor,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 60),
+                  decoration: BoxDecoration(
+                    color: bgB,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: _buildPlayer(
+                    isPortrait: isPortrait,
+                    name: playerBName,
+                    isServer: !score.serverIsA,
+                    previousSetsGames: score.previousSetsGamesB,
+                    games: score.gamesB,
+                    points: pB,
+                    hasSets: hasSets,
+                    hasGames: hasGames,
+                    hasPoints: hasPoints,
+                    neonColor: pointColorB,
+                    whiteColor: flashingIsA == false && flashState ? AppTheme.surface : whiteColor,
+                    grayColor: flashingIsA == false && flashState ? AppTheme.surface : grayColor,
+                  ),
                 ),
               ),
             ],
@@ -472,7 +566,7 @@ class _ScoreContent extends StatelessWidget {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 24.0), 
+                  padding: const EdgeInsets.only(left: 24.0),
                   child: _buildBigClockLandscape(neonColor),
                 ),
               ),
@@ -492,12 +586,12 @@ class _ScoreContent extends StatelessWidget {
                 fit: BoxFit.contain,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: content, 
+                  child: content,
                 ),
               ),
             ),
           ),
-          
+
           if (score.matchOver && score.winnerIsA != null) ...[
             const SizedBox(height: 24),
             Text(
@@ -572,7 +666,7 @@ class _ScoreContent extends StatelessWidget {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(width: 500, child: nameRow), 
+          SizedBox(width: 500, child: nameRow),
           const SizedBox(width: 48),
           scoresRow,
         ],

@@ -21,6 +21,10 @@ class GameConfig {
     this.breakBetweenSetsSeconds = 0,
     this.timeWarningSound = true,
     this.audioOutput = 'speaker',
+    // Flash visual ao registrar ponto
+    this.pointFlashEnabled = false,
+    this.pointFlashDurationMs = 600,
+    this.pointFlashFrequencyHz = 4,
   });
 
   final String sportName;
@@ -29,6 +33,7 @@ class GameConfig {
 
   /// Games para ganhar o set (ex.: 6 no tênis).
   final int gamesToWinSet;
+
   /// Diferença mínima de games (ex.: 2 = 6-4, 7-5).
   final int minGameDifference;
 
@@ -37,6 +42,7 @@ class GameConfig {
 
   /// Empatar em X games ativa o tiebreak (ex.: 6).
   final int tiebreakAt;
+
   /// Pontos para ganhar o tiebreak (7 ou 10).
   final int tiebreakPoints;
   final int tiebreakDifference;
@@ -57,15 +63,27 @@ class GameConfig {
 
   /// Tempo de saque após o ponto (segundos). 0 = desativado.
   final int serveClockSeconds;
+
   /// Tempo entre games (segundos). 0 = desativado.
   final int breakBetweenGamesSeconds;
+
   /// Tempo entre sets (segundos). 0 = desativado.
   final int breakBetweenSetsSeconds;
+
   /// Ao fim do tempo, aviso sonoro (locutor diz TIME / Táim).
   final bool timeWarningSound;
 
   /// Rota de saída de áudio para o TTS (speaker, bluetooth, fone de ouvido).
   final String audioOutput;
+
+  /// Ativa o flash visual ao registrar um ponto.
+  final bool pointFlashEnabled;
+
+  /// Duração total do flash em milissegundos.
+  final int pointFlashDurationMs;
+
+  /// Frequência de alternância do flash (vezes por segundo).
+  final int pointFlashFrequencyHz;
 
   GameConfig copyWith({
     String? sportName,
@@ -88,6 +106,9 @@ class GameConfig {
     int? breakBetweenSetsSeconds,
     bool? timeWarningSound,
     String? audioOutput,
+    bool? pointFlashEnabled,
+    int? pointFlashDurationMs,
+    int? pointFlashFrequencyHz,
   }) {
     return GameConfig(
       sportName: sportName ?? this.sportName,
@@ -99,8 +120,7 @@ class GameConfig {
       tiebreakAt: tiebreakAt ?? this.tiebreakAt,
       tiebreakPoints: tiebreakPoints ?? this.tiebreakPoints,
       tiebreakDifference: tiebreakDifference ?? this.tiebreakDifference,
-      finalSetTiebreakPoints:
-          finalSetTiebreakPoints ?? this.finalSetTiebreakPoints,
+      finalSetTiebreakPoints: finalSetTiebreakPoints ?? this.finalSetTiebreakPoints,
       useFinalSetTiebreak: useFinalSetTiebreak ?? this.useFinalSetTiebreak,
       withAdvantage: withAdvantage ?? this.withAdvantage,
       miniMatchGames: miniMatchGames ?? this.miniMatchGames,
@@ -111,6 +131,9 @@ class GameConfig {
       breakBetweenSetsSeconds: breakBetweenSetsSeconds ?? this.breakBetweenSetsSeconds,
       timeWarningSound: timeWarningSound ?? this.timeWarningSound,
       audioOutput: audioOutput ?? this.audioOutput,
+      pointFlashEnabled: pointFlashEnabled ?? this.pointFlashEnabled,
+      pointFlashDurationMs: pointFlashDurationMs ?? this.pointFlashDurationMs,
+      pointFlashFrequencyHz: pointFlashFrequencyHz ?? this.pointFlashFrequencyHz,
     );
   }
 
@@ -135,6 +158,9 @@ class GameConfig {
         'breakBetweenSetsSeconds': breakBetweenSetsSeconds,
         'timeWarningSound': timeWarningSound,
         'audioOutput': audioOutput,
+        'pointFlashEnabled': pointFlashEnabled,
+        'pointFlashDurationMs': pointFlashDurationMs,
+        'pointFlashFrequencyHz': pointFlashFrequencyHz,
       };
 
   factory GameConfig.fromJson(Map<String, dynamic> json) {
@@ -148,8 +174,7 @@ class GameConfig {
       tiebreakAt: json['tiebreakAt'] as int? ?? 6,
       tiebreakPoints: json['tiebreakPoints'] as int? ?? 7,
       tiebreakDifference: json['tiebreakDifference'] as int? ?? 2,
-      finalSetTiebreakPoints:
-          json['finalSetTiebreakPoints'] as int? ?? 7,
+      finalSetTiebreakPoints: json['finalSetTiebreakPoints'] as int? ?? 7,
       useFinalSetTiebreak: json['useFinalSetTiebreak'] as bool? ?? true,
       withAdvantage: json['withAdvantage'] as bool? ?? true,
       miniMatchGames: json['miniMatchGames'] as bool? ?? false,
@@ -160,6 +185,9 @@ class GameConfig {
       breakBetweenSetsSeconds: json['breakBetweenSetsSeconds'] as int? ?? 0,
       timeWarningSound: json['timeWarningSound'] as bool? ?? true,
       audioOutput: json['audioOutput'] as String? ?? 'speaker',
+      pointFlashEnabled: json['pointFlashEnabled'] as bool? ?? false,
+      pointFlashDurationMs: json['pointFlashDurationMs'] as int? ?? 600,
+      pointFlashFrequencyHz: json['pointFlashFrequencyHz'] as int? ?? 4,
     );
   }
 }

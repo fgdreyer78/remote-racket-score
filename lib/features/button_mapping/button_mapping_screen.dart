@@ -89,6 +89,7 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
               options: options,
             ),
             _buildDelaySlider('Intervalo Máximo Entre Cliques', mapping.volumeDelayMs, (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(volumeDelayMs: val))),
+            _buildMinIntervalSlider('Espera Mínima Entre Pontos', mapping.volumeMinIntervalMs, (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(volumeMinIntervalMs: val))),
           ],
           const Divider(color: Colors.white24, height: 1),
 
@@ -98,6 +99,7 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
             _SimpleDropdownTile(label: 'Ação para AVANÇAR (>>)', currentValue: mapping.mediaNextAction, options: options, onChanged: (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(mediaNextAction: val))),
             _SimpleDropdownTile(label: 'Ação para VOLTAR (<<)', currentValue: mapping.mediaPrevAction, options: options, onChanged: (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(mediaPrevAction: val))),
             _SimpleDropdownTile(label: 'Ação para PLAY / PAUSE', currentValue: mapping.mediaPlayAction, options: options, onChanged: (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(mediaPlayAction: val))),
+            _buildMinIntervalSlider('Espera Mínima Entre Pontos', mapping.mediaMinIntervalMs, (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(mediaMinIntervalMs: val))),
             const SizedBox(height: 16),
           ],
           const Divider(color: Colors.white24, height: 1),
@@ -124,6 +126,7 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
               currentTriple: mapping.keyTripleUndo, onTripleChanged: (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(keyTripleUndo: val)),
             ),
             _buildDelaySlider('Intervalo Máximo Entre Cliques', mapping.keyboardDelayMs, (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(keyboardDelayMs: val))),
+            _buildMinIntervalSlider('Espera Mínima Entre Pontos', mapping.keyboardMinIntervalMs, (val) => ref.read(buttonMappingProvider.notifier).updateMapping(mapping.copyWith(keyboardMinIntervalMs: val))),
           ],
         ],
       ),
@@ -143,6 +146,20 @@ class _ButtonMappingScreenState extends ConsumerState<ButtonMappingScreen> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(title, style: const TextStyle(color: AppTheme.onSurface, fontWeight: FontWeight.bold)),
         Row(children: [Expanded(child: Slider(value: value.toDouble(), min: 200, max: 1000, divisions: 8, activeColor: const Color(0xFFCCFF00), onChanged: (v) => onChanged(v.toInt()))), Text('${value}ms', style: const TextStyle(color: Color(0xFFCCFF00), fontWeight: FontWeight.bold))]),
+      ]),
+    );
+  }
+
+  Widget _buildMinIntervalSlider(String title, int value, ValueChanged<int> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(color: AppTheme.onSurface, fontWeight: FontWeight.bold)),
+        Text('Tempo mínimo de espera após registrar um ponto antes de aceitar o próximo', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        Row(children: [
+          Expanded(child: Slider(value: value.toDouble(), min: 0, max: 1000, divisions: 20, activeColor: const Color(0xFFCCFF00), onChanged: (v) => onChanged(v.toInt()))),
+          SizedBox(width: 64, child: Text(value == 0 ? 'Desligado' : '${value}ms', style: const TextStyle(color: Color(0xFFCCFF00), fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
+        ]),
       ]),
     );
   }
