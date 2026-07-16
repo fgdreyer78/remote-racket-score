@@ -12,14 +12,19 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // INICIALIZA O NOSSO CÉREBRO DE MÍDIA ANTES DE TUDO
-  globalAudioHandler = await AudioService.init(
-    builder: () => MatchAudioHandler(),
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.remoteracketscore.channel.audio',
-      androidNotificationChannelName: 'Placar em Andamento',
-      androidNotificationOngoing: true,
-    ),
-  );
+  try {
+    globalAudioHandler = await AudioService.init(
+      builder: () => MatchAudioHandler(),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.remoteracketscore.channel.audio',
+        androidNotificationChannelName: 'Placar em Andamento',
+        androidNotificationOngoing: true,
+      ),
+    );
+  } catch (e) {
+    // Se o áudio falhar, cria um handler dummy para o app não quebrar
+    globalAudioHandler = MatchAudioHandler();
+  }
 
   // Mantém a sua configuração original de orientação de tela
   SystemChrome.setPreferredOrientations([
