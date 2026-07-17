@@ -25,6 +25,8 @@ class GameConfig {
     this.pointFlashEnabled = false,
     this.pointFlashDurationMs = 600,
     this.pointFlashFrequencyHz = 4,
+    // Layout do placar: 0 = padrão, 1 = landscape dividido
+    this.layoutMode = 0,
     // Auto-save no histórico
     this.autoSaveToHistory = true,
     this.autoSaveDelaySeconds = 10,
@@ -96,6 +98,9 @@ class GameConfig {
   /// Segundos de espera após último ponto antes de salvar (para desfazer). 0 = salvar imediatamente.
   final int autoSaveDelaySeconds;
 
+  /// Modo de layout: 0 = padrão, 1 = landscape dividido (lado a lado).
+  final int layoutMode;
+
   GameConfig copyWith({
     String? sportName,
     String? playerAName,
@@ -122,6 +127,7 @@ class GameConfig {
     int? pointFlashFrequencyHz,
     bool? autoSaveToHistory,
     int? autoSaveDelaySeconds,
+    int? layoutMode,
   }) {
     return GameConfig(
       sportName: sportName ?? this.sportName,
@@ -154,6 +160,7 @@ class GameConfig {
           pointFlashFrequencyHz ?? this.pointFlashFrequencyHz,
       autoSaveToHistory: autoSaveToHistory ?? this.autoSaveToHistory,
       autoSaveDelaySeconds: autoSaveDelaySeconds ?? this.autoSaveDelaySeconds,
+      layoutMode: layoutMode ?? this.layoutMode,
     );
   }
 
@@ -181,6 +188,7 @@ class GameConfig {
         'pointFlashFrequencyHz': pointFlashFrequencyHz,
         'autoSaveToHistory': autoSaveToHistory,
         'autoSaveDelaySeconds': autoSaveDelaySeconds,
+        'layoutMode': layoutMode,
       };
 
   factory GameConfig.fromJson(Map<String, dynamic> json) {
@@ -214,6 +222,7 @@ class GameConfig {
       pointFlashFrequencyHz: json['pointFlashFrequencyHz'] as int? ?? 4,
       autoSaveToHistory: json['autoSaveToHistory'] as bool? ?? true,
       autoSaveDelaySeconds: json['autoSaveDelaySeconds'] as int? ?? 10,
+      layoutMode: json['layoutMode'] as int? ?? 0,
     );
   }
 }

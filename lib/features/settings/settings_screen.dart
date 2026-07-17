@@ -38,6 +38,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // Auto-save
   late bool _autoSaveToHistory;
   late int _autoSaveDelaySeconds;
+  // Layout
+  late int _layoutMode;
 
   @override
   void initState() {
@@ -63,6 +65,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _pointFlashFrequencyHz = 4;
     _autoSaveToHistory = true;
     _autoSaveDelaySeconds = 10;
+    _layoutMode = 0;
   }
 
   bool _formInitialized = false;
@@ -93,6 +96,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _pointFlashFrequencyHz = config.pointFlashFrequencyHz;
       _autoSaveToHistory = config.autoSaveToHistory;
       _autoSaveDelaySeconds = config.autoSaveDelaySeconds;
+      _layoutMode = config.layoutMode;
     });
   }
 
@@ -285,6 +289,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _autoSaveDelaySeconds, (v) => _autoSaveDelaySeconds = v,
                   min: 0),
 
+            const SizedBox(height: 24),
+
+            // --- LAYOUT ---
+            const Text('Layout do Placar',
+                style: TextStyle(
+                    color: AppTheme.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int>(
+              value: _layoutMode,
+              dropdownColor: AppTheme.surfaceVariant,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                    value: 0, child: Text('Padrão (retrato / paisagem)')),
+                DropdownMenuItem(
+                    value: 1, child: Text('Paisagem dividido (lado a lado)')),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _layoutMode = value);
+              },
+            ),
+
             const SizedBox(height: 48),
 
             FilledButton(
@@ -394,6 +425,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _pointFlashFrequencyHz = config.pointFlashFrequencyHz;
       _autoSaveToHistory = config.autoSaveToHistory;
       _autoSaveDelaySeconds = config.autoSaveDelaySeconds;
+      _layoutMode = config.layoutMode;
       _formKey++;
     });
   }
@@ -456,6 +488,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       pointFlashFrequencyHz: _pointFlashFrequencyHz,
       autoSaveToHistory: _autoSaveToHistory,
       autoSaveDelaySeconds: _autoSaveDelaySeconds,
+      layoutMode: _layoutMode,
     );
     ref.read(gameConfigProvider.notifier).updateConfig(config);
     ref.read(gamePresetsProvider.notifier).savePreset(name, config);
