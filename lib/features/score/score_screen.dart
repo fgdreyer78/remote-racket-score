@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_theme.dart';
@@ -44,6 +45,14 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(keyEventServiceProvider).setGameMode(true);
+      // Força landscape se layoutMode == 1
+      final config = ref.read(gameConfigProvider).valueOrNull;
+      if (config != null && config.layoutMode == 1) {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+      }
     });
   }
 
@@ -52,6 +61,12 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     _clockTimer?.cancel();
     _flashTimer?.cancel();
     ref.read(keyEventServiceProvider).setGameMode(false);
+    // Restaura orientação ao sair
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     super.dispose();
   }
 
