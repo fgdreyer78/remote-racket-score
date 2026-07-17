@@ -17,17 +17,22 @@ class GameConfig {
     this.miniMatchGamesCount = 3,
     this.ttsLanguage = 'pt-BR',
     this.serveClockSeconds = 0,
-    this.breakBetweenGamesSeconds = 0,
+    this.breakBetweenOddGamesSeconds = 0,
+    this.breakBetweenEvenGamesSeconds = 0,
     this.breakBetweenSetsSeconds = 0,
     this.timeWarningSound = true,
-    this.audioOutput = 'speaker',
     // Flash visual ao registrar ponto
     this.pointFlashEnabled = false,
     this.pointFlashDurationMs = 600,
     this.pointFlashFrequencyHz = 4,
+    // Auto-save no histórico
+    this.autoSaveToHistory = true,
+    this.autoSaveDelaySeconds = 10,
   });
 
   final String sportName;
+
+  /// Nomes dos jogadores (não salvos em presets, apenas na sessão atual).
   final String playerAName;
   final String playerBName;
 
@@ -64,17 +69,17 @@ class GameConfig {
   /// Tempo de saque após o ponto (segundos). 0 = desativado.
   final int serveClockSeconds;
 
-  /// Tempo entre games (segundos). 0 = desativado.
-  final int breakBetweenGamesSeconds;
+  /// Intervalo entre games ímpares (soma de games do set é ímpar). 0 = desativado.
+  final int breakBetweenOddGamesSeconds;
+
+  /// Intervalo entre games pares (soma de games do set é par). 0 = desativado.
+  final int breakBetweenEvenGamesSeconds;
 
   /// Tempo entre sets (segundos). 0 = desativado.
   final int breakBetweenSetsSeconds;
 
-  /// Ao fim do tempo, aviso sonoro (locutor diz TIME / Táim).
+  /// Ao fim do tempo, aviso sonoro "Tempo" (apenas em games ímpares e sets).
   final bool timeWarningSound;
-
-  /// Rota de saída de áudio para o TTS (speaker, bluetooth, fone de ouvido).
-  final String audioOutput;
 
   /// Ativa o flash visual ao registrar um ponto.
   final bool pointFlashEnabled;
@@ -84,6 +89,12 @@ class GameConfig {
 
   /// Frequência de alternância do flash (vezes por segundo).
   final int pointFlashFrequencyHz;
+
+  /// Salvar automaticamente no histórico ao fim da partida.
+  final bool autoSaveToHistory;
+
+  /// Segundos de espera após último ponto antes de salvar (para desfazer). 0 = salvar imediatamente.
+  final int autoSaveDelaySeconds;
 
   GameConfig copyWith({
     String? sportName,
@@ -102,13 +113,15 @@ class GameConfig {
     int? miniMatchGamesCount,
     String? ttsLanguage,
     int? serveClockSeconds,
-    int? breakBetweenGamesSeconds,
+    int? breakBetweenOddGamesSeconds,
+    int? breakBetweenEvenGamesSeconds,
     int? breakBetweenSetsSeconds,
     bool? timeWarningSound,
-    String? audioOutput,
     bool? pointFlashEnabled,
     int? pointFlashDurationMs,
     int? pointFlashFrequencyHz,
+    bool? autoSaveToHistory,
+    int? autoSaveDelaySeconds,
   }) {
     return GameConfig(
       sportName: sportName ?? this.sportName,
@@ -120,27 +133,32 @@ class GameConfig {
       tiebreakAt: tiebreakAt ?? this.tiebreakAt,
       tiebreakPoints: tiebreakPoints ?? this.tiebreakPoints,
       tiebreakDifference: tiebreakDifference ?? this.tiebreakDifference,
-      finalSetTiebreakPoints: finalSetTiebreakPoints ?? this.finalSetTiebreakPoints,
+      finalSetTiebreakPoints:
+          finalSetTiebreakPoints ?? this.finalSetTiebreakPoints,
       useFinalSetTiebreak: useFinalSetTiebreak ?? this.useFinalSetTiebreak,
       withAdvantage: withAdvantage ?? this.withAdvantage,
       miniMatchGames: miniMatchGames ?? this.miniMatchGames,
       miniMatchGamesCount: miniMatchGamesCount ?? this.miniMatchGamesCount,
       ttsLanguage: ttsLanguage ?? this.ttsLanguage,
       serveClockSeconds: serveClockSeconds ?? this.serveClockSeconds,
-      breakBetweenGamesSeconds: breakBetweenGamesSeconds ?? this.breakBetweenGamesSeconds,
-      breakBetweenSetsSeconds: breakBetweenSetsSeconds ?? this.breakBetweenSetsSeconds,
+      breakBetweenOddGamesSeconds:
+          breakBetweenOddGamesSeconds ?? this.breakBetweenOddGamesSeconds,
+      breakBetweenEvenGamesSeconds:
+          breakBetweenEvenGamesSeconds ?? this.breakBetweenEvenGamesSeconds,
+      breakBetweenSetsSeconds:
+          breakBetweenSetsSeconds ?? this.breakBetweenSetsSeconds,
       timeWarningSound: timeWarningSound ?? this.timeWarningSound,
-      audioOutput: audioOutput ?? this.audioOutput,
       pointFlashEnabled: pointFlashEnabled ?? this.pointFlashEnabled,
       pointFlashDurationMs: pointFlashDurationMs ?? this.pointFlashDurationMs,
-      pointFlashFrequencyHz: pointFlashFrequencyHz ?? this.pointFlashFrequencyHz,
+      pointFlashFrequencyHz:
+          pointFlashFrequencyHz ?? this.pointFlashFrequencyHz,
+      autoSaveToHistory: autoSaveToHistory ?? this.autoSaveToHistory,
+      autoSaveDelaySeconds: autoSaveDelaySeconds ?? this.autoSaveDelaySeconds,
     );
   }
 
   Map<String, dynamic> toJson() => {
         'sportName': sportName,
-        'playerAName': playerAName,
-        'playerBName': playerBName,
         'gamesToWinSet': gamesToWinSet,
         'minGameDifference': minGameDifference,
         'maxSets': maxSets,
@@ -154,13 +172,15 @@ class GameConfig {
         'miniMatchGamesCount': miniMatchGamesCount,
         'ttsLanguage': ttsLanguage,
         'serveClockSeconds': serveClockSeconds,
-        'breakBetweenGamesSeconds': breakBetweenGamesSeconds,
+        'breakBetweenOddGamesSeconds': breakBetweenOddGamesSeconds,
+        'breakBetweenEvenGamesSeconds': breakBetweenEvenGamesSeconds,
         'breakBetweenSetsSeconds': breakBetweenSetsSeconds,
         'timeWarningSound': timeWarningSound,
-        'audioOutput': audioOutput,
         'pointFlashEnabled': pointFlashEnabled,
         'pointFlashDurationMs': pointFlashDurationMs,
         'pointFlashFrequencyHz': pointFlashFrequencyHz,
+        'autoSaveToHistory': autoSaveToHistory,
+        'autoSaveDelaySeconds': autoSaveDelaySeconds,
       };
 
   factory GameConfig.fromJson(Map<String, dynamic> json) {
@@ -181,13 +201,19 @@ class GameConfig {
       miniMatchGamesCount: json['miniMatchGamesCount'] as int? ?? 3,
       ttsLanguage: json['ttsLanguage'] as String? ?? 'pt-BR',
       serveClockSeconds: json['serveClockSeconds'] as int? ?? 0,
-      breakBetweenGamesSeconds: json['breakBetweenGamesSeconds'] as int? ?? 0,
+      breakBetweenOddGamesSeconds:
+          json['breakBetweenOddGamesSeconds'] as int? ??
+              json['breakBetweenGamesSeconds'] as int? ??
+              0,
+      breakBetweenEvenGamesSeconds:
+          json['breakBetweenEvenGamesSeconds'] as int? ?? 0,
       breakBetweenSetsSeconds: json['breakBetweenSetsSeconds'] as int? ?? 0,
       timeWarningSound: json['timeWarningSound'] as bool? ?? true,
-      audioOutput: json['audioOutput'] as String? ?? 'speaker',
       pointFlashEnabled: json['pointFlashEnabled'] as bool? ?? false,
       pointFlashDurationMs: json['pointFlashDurationMs'] as int? ?? 600,
       pointFlashFrequencyHz: json['pointFlashFrequencyHz'] as int? ?? 4,
+      autoSaveToHistory: json['autoSaveToHistory'] as bool? ?? true,
+      autoSaveDelaySeconds: json['autoSaveDelaySeconds'] as int? ?? 10,
     );
   }
 }

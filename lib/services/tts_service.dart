@@ -16,7 +16,17 @@ class TtsService {
   late final FlutterTts _tts;
   String _currentLanguage = 'pt-BR';
   final List<String> _numberWords = [
-    'zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez'
+    'zero',
+    'um',
+    'dois',
+    'três',
+    'quatro',
+    'cinco',
+    'seis',
+    'sete',
+    'oito',
+    'nove',
+    'dez'
   ];
 
   String _n(int i) => i < _numberWords.length ? _numberWords[i] : '$i';
@@ -39,8 +49,13 @@ class TtsService {
         final locale = map['locale']?.toString().toLowerCase() ?? '';
         if (!locale.startsWith(langPrefix)) continue;
         final name = (map['name'] ?? map['id'] ?? '').toString().toLowerCase();
-        if (name.contains('male') || name.contains('homem') || name.contains('masculin')) {
-          await _tts.setVoice({'name': map['name']?.toString() ?? '', 'locale': map['locale']?.toString() ?? languageCode});
+        if (name.contains('male') ||
+            name.contains('homem') ||
+            name.contains('masculin')) {
+          await _tts.setVoice({
+            'name': map['name']?.toString() ?? '',
+            'locale': map['locale']?.toString() ?? languageCode
+          });
           return;
         }
       }
@@ -49,46 +64,33 @@ class TtsService {
         if (map == null) continue;
         final locale = map['locale']?.toString().toLowerCase() ?? '';
         if (!locale.startsWith(langPrefix)) continue;
-        final gender = (map['gender'] ?? map['voice'] ?? '').toString().toLowerCase();
+        final gender =
+            (map['gender'] ?? map['voice'] ?? '').toString().toLowerCase();
         if (gender.contains('male') || gender.contains('homem')) {
-          await _tts.setVoice({'name': map['name']?.toString() ?? '', 'locale': map['locale']?.toString() ?? languageCode});
+          await _tts.setVoice({
+            'name': map['name']?.toString() ?? '',
+            'locale': map['locale']?.toString() ?? languageCode
+          });
           return;
         }
       }
     } catch (_) {}
   }
 
-  // >>> MÁGICA DO ROTEAMENTO DE ÁUDIO AQUI <<<
   Future<void> _configureAudioRoute(GameConfig config) async {
     try {
       final session = await AudioSession.instance;
-      if (config.audioOutput == 'speaker') {
-        // Força a saída no alto-falante do celular
-        await session.configure(const AudioSessionConfiguration(
-          avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
-          avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.defaultToSpeaker,
-          avAudioSessionMode: AVAudioSessionMode.spokenAudio,
-          androidAudioAttributes: AndroidAudioAttributes(
-            contentType: AndroidAudioContentType.speech,
-            flags: AndroidAudioFlags.none,
-            usage: AndroidAudioUsage.alarm, // Alarm ignora fones Bluetooth no Android
-          ),
-          androidAudioFocusGainType: AndroidAudioFocusGainType.gainTransientMayDuck,
-        ));
-      } else {
-        // Permite fone de ouvido ou bluetooth
-        await session.configure(const AudioSessionConfiguration(
-          avAudioSessionCategory: AVAudioSessionCategory.playback,
-          avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.allowBluetooth,
-          avAudioSessionMode: AVAudioSessionMode.spokenAudio,
-          androidAudioAttributes: AndroidAudioAttributes(
-            contentType: AndroidAudioContentType.speech,
-            flags: AndroidAudioFlags.none,
-            usage: AndroidAudioUsage.media, 
-          ),
-          androidAudioFocusGainType: AndroidAudioFocusGainType.gainTransientMayDuck,
-        ));
-      }
+      await session.configure(const AudioSessionConfiguration(
+        avAudioSessionCategory: AVAudioSessionCategory.playback,
+        avAudioSessionMode: AVAudioSessionMode.spokenAudio,
+        androidAudioAttributes: AndroidAudioAttributes(
+          contentType: AndroidAudioContentType.speech,
+          flags: AndroidAudioFlags.none,
+          usage: AndroidAudioUsage.alarm,
+        ),
+        androidAudioFocusGainType:
+            AndroidAudioFocusGainType.gainTransientMayDuck,
+      ));
     } catch (e) {
       // Ignora falhas de sessão
     }
@@ -113,7 +115,7 @@ class TtsService {
     final receiverPoints = state.serverIsA ? state.pointsB : state.pointsA;
     final isEqual = serverPoints == receiverPoints && serverPoints <= 3;
     final equalWord = config.ttsLanguage == 'pt-BR' ? 'iguais' : 'all';
-    
+
     if (config.ttsLanguage == 'en-US') {
       final s = _pointWordEn(serverPoints);
       final r = _pointWordEn(receiverPoints);
@@ -135,25 +137,36 @@ class TtsService {
 
   String _pointWordPt(int points) {
     switch (points) {
-      case 0: return 'zero';
-      case 1: return '15';
-      case 2: return '30';
-      case 3: return '40';
-      default: return '40';
+      case 0:
+        return 'zero';
+      case 1:
+        return '15';
+      case 2:
+        return '30';
+      case 3:
+        return '40';
+      default:
+        return '40';
     }
   }
 
   String _pointWordEn(int points) {
     switch (points) {
-      case 0: return 'love';
-      case 1: return 'fifteen';
-      case 2: return 'thirty';
-      case 3: return 'forty';
-      default: return 'forty';
+      case 0:
+        return 'love';
+      case 1:
+        return 'fifteen';
+      case 2:
+        return 'thirty';
+      case 3:
+        return 'forty';
+      default:
+        return 'forty';
     }
   }
 
-  Future<void> speakGameAndSetScore(ScoreState newState, ScoreState previousState, GameConfig config) async {
+  Future<void> speakGameAndSetScore(
+      ScoreState newState, ScoreState previousState, GameConfig config) async {
     await _ensureLanguage(config.ttsLanguage);
     final newGa = newState.gamesA;
     final newGb = newState.gamesB;
@@ -168,7 +181,8 @@ class TtsService {
     }
   }
 
-  Future<void> speakTiebreakAndSet(ScoreState newState, ScoreState previousState, GameConfig config) async {
+  Future<void> speakTiebreakAndSet(
+      ScoreState newState, ScoreState previousState, GameConfig config) async {
     await _ensureLanguage(config.ttsLanguage);
     final aWon = newState.setsA > previousState.setsA;
     final name = aWon ? config.playerAName : config.playerBName;
@@ -185,7 +199,8 @@ class TtsService {
 
   Future<void> speakMatchWinner(ScoreState state, GameConfig config) async {
     await _ensureLanguage(config.ttsLanguage);
-    final name = state.winnerIsA == true ? config.playerAName : config.playerBName;
+    final name =
+        state.winnerIsA == true ? config.playerAName : config.playerBName;
     if (config.ttsLanguage == 'pt-BR') {
       await _speak('Game, set, match $name', config);
     } else {
@@ -202,7 +217,8 @@ class TtsService {
     }
   }
 
-  Future<void> speakTiebreakStart(ScoreState newState, GameConfig config) async {
+  Future<void> speakTiebreakStart(
+      ScoreState newState, GameConfig config) async {
     await _ensureLanguage(config.ttsLanguage);
     if (config.ttsLanguage == 'pt-BR') {
       await _speak('Taibrêik', config);
@@ -213,7 +229,8 @@ class TtsService {
     }
   }
 
-  Future<void> speakSetWinner(ScoreState previousState, ScoreState newState, GameConfig config) async {
+  Future<void> speakSetWinner(
+      ScoreState previousState, ScoreState newState, GameConfig config) async {
     await _ensureLanguage(config.ttsLanguage);
     final setsBeforeA = previousState.setsA;
     final setsBeforeB = previousState.setsB;
@@ -221,7 +238,7 @@ class TtsService {
     final setsAfterB = newState.setsB;
     final aWonSet = setsAfterA > setsBeforeA;
     final name = aWonSet ? config.playerAName : config.playerBName;
-    final setNumber = setsAfterA + setsAfterB; 
+    final setNumber = setsAfterA + setsAfterB;
     final ordinal = _ordinalSetName(setNumber, config.ttsLanguage);
     if (config.ttsLanguage == 'pt-BR') {
       await _speak('Game e $ordinal set $name', config);
@@ -233,21 +250,33 @@ class TtsService {
   String _ordinalSetName(int setNumber, String languageCode) {
     if (languageCode == 'pt-BR') {
       switch (setNumber) {
-        case 1: return 'primeiro';
-        case 2: return 'segundo';
-        case 3: return 'terceiro';
-        case 4: return 'quarto';
-        case 5: return 'quinto';
-        default: return '$setNumberº';
+        case 1:
+          return 'primeiro';
+        case 2:
+          return 'segundo';
+        case 3:
+          return 'terceiro';
+        case 4:
+          return 'quarto';
+        case 5:
+          return 'quinto';
+        default:
+          return '$setNumberº';
       }
     } else {
       switch (setNumber) {
-        case 1: return 'first';
-        case 2: return 'second';
-        case 3: return 'third';
-        case 4: return 'fourth';
-        case 5: return 'fifth';
-        default: return '${setNumber}th';
+        case 1:
+          return 'first';
+        case 2:
+          return 'second';
+        case 3:
+          return 'third';
+        case 4:
+          return 'fourth';
+        case 5:
+          return 'fifth';
+        default:
+          return '${setNumber}th';
       }
     }
   }
@@ -266,7 +295,8 @@ class TtsService {
     await _speak(text, config);
   }
 
-  Future<void> announceTransition(ScoreState previousState, ScoreState newState, GameConfig config) async {
+  Future<void> announceTransition(
+      ScoreState previousState, ScoreState newState, GameConfig config) async {
     if (newState.matchOver) {
       await speakMatchWinner(newState, config);
       return;
@@ -275,12 +305,15 @@ class TtsService {
       await speakTiebreakStart(newState, config);
       return;
     }
-    final setJustEnded = (newState.setsA != previousState.setsA) || (newState.setsB != previousState.setsB);
+    final setJustEnded = (newState.setsA != previousState.setsA) ||
+        (newState.setsB != previousState.setsB);
     if (setJustEnded) {
       await speakSetWinner(previousState, newState, config);
       return;
     }
-    final gameJustEnded = (newState.gamesA != previousState.gamesA || newState.gamesB != previousState.gamesB) && !newState.isTiebreak;
+    final gameJustEnded = (newState.gamesA != previousState.gamesA ||
+            newState.gamesB != previousState.gamesB) &&
+        !newState.isTiebreak;
     if (gameJustEnded) {
       await speakGameAndSetScore(newState, previousState, config);
       return;

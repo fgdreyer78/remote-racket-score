@@ -39,8 +39,7 @@ final gamePresetsProvider =
   return GamePresetsNotifier(ref);
 });
 
-class GamePresetsNotifier
-    extends StateNotifier<AsyncValue<List<MatchPreset>>> {
+class GamePresetsNotifier extends StateNotifier<AsyncValue<List<MatchPreset>>> {
   GamePresetsNotifier(this._ref) : super(const AsyncValue.loading()) {
     _load();
   }
@@ -61,8 +60,10 @@ class GamePresetsNotifier
     final current = state.valueOrNull ?? <MatchPreset>[];
     final id = name.trim().toLowerCase();
     final existingIndex = current.indexWhere((p) => p.id == id);
-    final preset =
-        MatchPreset(id: id, name: name.trim().isEmpty ? 'Configuração' : name.trim(), config: config);
+    final preset = MatchPreset(
+        id: id,
+        name: name.trim().isEmpty ? 'Configuração' : name.trim(),
+        config: config);
 
     List<MatchPreset> updated;
     if (existingIndex >= 0) {
@@ -77,8 +78,15 @@ class GamePresetsNotifier
     await _savePresets(updated);
   }
 
+  Future<void> deletePreset(int index) async {
+    final current = state.valueOrNull ?? <MatchPreset>[];
+    if (index < 0 || index >= current.length) return;
+    final updated = List<MatchPreset>.from(current)..removeAt(index);
+    state = AsyncValue.data(updated);
+    await _savePresets(updated);
+  }
+
   Future<void> applyPreset(MatchPreset preset) async {
     _ref.read(gameConfigProvider.notifier).updateConfig(preset.config);
   }
 }
-

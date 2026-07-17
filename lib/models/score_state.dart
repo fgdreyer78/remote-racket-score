@@ -7,8 +7,10 @@ class ScoreState {
     this.gamesB = 0,
     this.setsA = 0,
     this.setsB = 0,
-    this.previousSetsGamesA = const [], // NOVO: Caderninho de sets do Jogador A
-    this.previousSetsGamesB = const [], // NOVO: Caderninho de sets do Jogador B
+    this.previousSetsGamesA = const [],
+    this.previousSetsGamesB = const [],
+    this.previousSetsTiebreakPointsA = const [],
+    this.previousSetsTiebreakPointsB = const [],
     this.currentSet = 1,
     this.isTiebreak = false,
     this.tiebreakPointsA = 0,
@@ -25,8 +27,12 @@ class ScoreState {
   final int gamesB;
   final int setsA;
   final int setsB;
-  final List<int> previousSetsGamesA; // NOVO
-  final List<int> previousSetsGamesB; // NOVO
+  final List<int> previousSetsGamesA;
+  final List<int> previousSetsGamesB;
+
+  /// Pontos de tiebreak de cada set anterior (0 se não houve tiebreak).
+  final List<int> previousSetsTiebreakPointsA;
+  final List<int> previousSetsTiebreakPointsB;
   final int currentSet;
   final bool isTiebreak;
   final int tiebreakPointsA;
@@ -43,8 +49,10 @@ class ScoreState {
     int? gamesB,
     int? setsA,
     int? setsB,
-    List<int>? previousSetsGamesA, // NOVO
-    List<int>? previousSetsGamesB, // NOVO
+    List<int>? previousSetsGamesA,
+    List<int>? previousSetsGamesB,
+    List<int>? previousSetsTiebreakPointsA,
+    List<int>? previousSetsTiebreakPointsB,
     int? currentSet,
     bool? isTiebreak,
     int? tiebreakPointsA,
@@ -61,8 +69,12 @@ class ScoreState {
       gamesB: gamesB ?? this.gamesB,
       setsA: setsA ?? this.setsA,
       setsB: setsB ?? this.setsB,
-      previousSetsGamesA: previousSetsGamesA ?? this.previousSetsGamesA, // NOVO
-      previousSetsGamesB: previousSetsGamesB ?? this.previousSetsGamesB, // NOVO
+      previousSetsGamesA: previousSetsGamesA ?? this.previousSetsGamesA,
+      previousSetsGamesB: previousSetsGamesB ?? this.previousSetsGamesB,
+      previousSetsTiebreakPointsA:
+          previousSetsTiebreakPointsA ?? this.previousSetsTiebreakPointsA,
+      previousSetsTiebreakPointsB:
+          previousSetsTiebreakPointsB ?? this.previousSetsTiebreakPointsB,
       currentSet: currentSet ?? this.currentSet,
       isTiebreak: isTiebreak ?? this.isTiebreak,
       tiebreakPointsA: tiebreakPointsA ?? this.tiebreakPointsA,

@@ -36,10 +36,12 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   bool _flashState = false; // true = invertido, false = normal
   Timer? _flashTimer;
 
+  // Controle de aviso sonoro: só toca em games ímpares e sets
+  bool _lastClockPlayWarning = false;
+
   @override
   void initState() {
     super.initState();
-    // ACORDA O MOTOR: Entrou no placar, liga o Buraco Negro NATIVO do Kotlin!
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(keyEventServiceProvider).setGameMode(true);
     });
@@ -49,13 +51,14 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   void dispose() {
     _clockTimer?.cancel();
     _flashTimer?.cancel();
-    // Saiu do placar de vez, solta o volume do celular!
     ref.read(keyEventServiceProvider).setGameMode(false);
     super.dispose();
   }
 
-  void _startClock(int seconds, String label, GameConfig config) {
+  void _startClock(int seconds, String label, GameConfig config,
+      {bool playWarningSound = false}) {
     _clockTimer?.cancel();
+    _lastClockPlayWarning = playWarningSound;
     setState(() {
       _clockRemaining = seconds;
       _clockLabel = label;
@@ -67,7 +70,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       if (next <= 0) {
         _clockTimer?.cancel();
         _clockTimer = null;
-        if (config.timeWarningSound) {
+        if (config.timeWarningSound && _lastClockPlayWarning) {
           ref.read(ttsServiceProvider).speakTimeWarning(config);
         }
       }
@@ -79,7 +82,6 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     });
   }
 
-  /// Inicia o flash visual para o jogador que marcou ponto
   void _startFlash(bool isA, GameConfig config) {
     if (!config.pointFlashEnabled) return;
     _flashTimer?.cancel();
@@ -132,11 +134,14 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       }
 
       final setEnded = (next.setsA != prev.setsA) || (next.setsB != prev.setsB);
-      final gameEnded = (next.gamesA + next.gamesB) > (prev.gamesA + prev.gamesB) && !next.isTiebreak;
-      final pointAdded = next.pointsA != prev.pointsA || next.pointsB != prev.pointsB ||
-          next.tiebreakPointsA != prev.tiebreakPointsA || next.tiebreakPointsB != prev.tiebreakPointsB;
+      final gameEnded =
+          (next.gamesA + next.gamesB) > (prev.gamesA + prev.gamesB) &&
+              !next.isTiebreak;
+      final pointAdded = next.pointsA != prev.pointsA ||
+          next.pointsB != prev.pointsB ||
+          next.tiebreakPointsA != prev.tiebreakPointsA ||
+          next.tiebreakPointsB != prev.tiebreakPointsB;
 
-      // Detecta quem marcou o ponto para o flash
       if (pointAdded) {
         final scorerIsA = (next.pointsA != prev.pointsA) ||
             (next.tiebreakPointsA != prev.tiebreakPointsA) ||
@@ -148,14 +153,21 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       final totalGames = next.gamesA + next.gamesB;
       final isOddGame = totalGames % 2 != 0;
       final isFirstGame = totalGames == 1;
-      final shouldRest = gameEnded && isOddGame && !isFirstGame;
+      final shouldRestOdd = gameEnded && isOddGame && !isFirstGame;
+      final shouldRestEven = gameEnded && !isOddGame && !isFirstGame;
 
       if (setEnded && config.breakBetweenSetsSeconds > 0) {
-        _startClock(config.breakBetweenSetsSeconds, 'Intervalo', config);
-      } else if (shouldRest && config.breakBetweenGamesSeconds > 0) {
-        _startClock(config.breakBetweenGamesSeconds, 'Intervalo', config);
+        _startClock(config.breakBetweenSetsSeconds, 'Intervalo', config,
+            playWarningSound: true);
+      } else if (shouldRestOdd && config.breakBetweenOddGamesSeconds > 0) {
+        _startClock(config.breakBetweenOddGamesSeconds, 'Intervalo', config,
+            playWarningSound: true);
+      } else if (shouldRestEven && config.breakBetweenEvenGamesSeconds > 0) {
+        _startClock(config.breakBetweenEvenGamesSeconds, 'Intervalo', config,
+            playWarningSound: false);
       } else if (pointAdded && config.serveClockSeconds > 0) {
-        _startClock(config.serveClockSeconds, 'Saque', config);
+        _startClock(config.serveClockSeconds, 'Saque', config,
+            playWarningSound: false);
       }
     });
 
@@ -179,48 +191,82 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                   SafeArea(
                     child: _ScoreContent(
                       score: score,
-                      playerAName: config.playerAName,
-                      playerBName: config.playerBName,
-                      ttsLanguage: config.ttsLanguage,
+                      config: config,
                       clockLabel: _clockLabel,
                       clockRemaining: _clockRemaining,
                       flashingIsA: _flashingIsA,
                       flashState: _flashState,
                       onPointA: () {
-                        if (!score.matchOver) ref.read(scoreStateProvider.notifier).addPointA();
+                        if (!score.matchOver)
+                          ref.read(scoreStateProvider.notifier).addPointA();
                       },
                       onPointB: () {
-                        if (!score.matchOver) ref.read(scoreStateProvider.notifier).addPointB();
+                        if (!score.matchOver)
+                          ref.read(scoreStateProvider.notifier).addPointB();
                       },
-                      onUndo: () => ref.read(scoreStateProvider.notifier).undo(),
+                      onUndo: () =>
+                          ref.read(scoreStateProvider.notifier).undo(),
                     ),
                   ),
-
                   AnimatedSlide(
-                    offset: _isMenuVisible ? Offset.zero : const Offset(0, -1.2),
+                    offset:
+                        _isMenuVisible ? Offset.zero : const Offset(0, -1.2),
                     duration: const Duration(milliseconds: 700),
                     curve: Curves.easeInOutCubic,
                     child: Container(
                       color: AppTheme.surface.withOpacity(0.95),
-                      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+                      padding: EdgeInsets.only(
+                          top: MediaQuery.of(context).padding.top),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              config.sportName.isNotEmpty ? config.sportName : 'Placar',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                              config.sportName.isNotEmpty
+                                  ? config.sportName
+                                  : 'Placar',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(icon: const Icon(Icons.history, color: neonColor), tooltip: 'Histórico', onPressed: () => _openHistory(context)),
-                                IconButton(icon: const Icon(Icons.casino, color: neonColor), tooltip: 'Coin toss', onPressed: () => _coinToss(context)),
-                                IconButton(icon: const Icon(Icons.refresh, color: neonColor), tooltip: 'Nova partida', onPressed: () => _confirmReset(context)),
-                                IconButton(icon: const Icon(Icons.sports_tennis, color: neonColor), tooltip: 'Configurações', onPressed: () => _openSettings(context)),
-                                IconButton(icon: const Icon(Icons.settings_input_antenna, color: neonColor), tooltip: 'Mapear botões', onPressed: () => _openButtonMapping(context)),
-                                IconButton(icon: const Icon(Icons.home, color: neonColor), tooltip: 'Menu principal', onPressed: () => _goHome(context)),
+                                IconButton(
+                                    icon: const Icon(Icons.history,
+                                        color: neonColor),
+                                    tooltip: 'Histórico',
+                                    onPressed: () => _openHistory(context)),
+                                IconButton(
+                                    icon: const Icon(Icons.casino,
+                                        color: neonColor),
+                                    tooltip: 'Coin toss',
+                                    onPressed: () => _coinToss(context)),
+                                IconButton(
+                                    icon: const Icon(Icons.refresh,
+                                        color: neonColor),
+                                    tooltip: 'Nova partida',
+                                    onPressed: () => _confirmReset(context)),
+                                IconButton(
+                                    icon: const Icon(Icons.sports_tennis,
+                                        color: neonColor),
+                                    tooltip: 'Configurações',
+                                    onPressed: () => _openSettings(context)),
+                                IconButton(
+                                    icon: const Icon(
+                                        Icons.settings_input_antenna,
+                                        color: neonColor),
+                                    tooltip: 'Mapear botões',
+                                    onPressed: () =>
+                                        _openButtonMapping(context)),
+                                IconButton(
+                                    icon: const Icon(Icons.home,
+                                        color: neonColor),
+                                    tooltip: 'Menu principal',
+                                    onPressed: () => _goHome(context)),
                               ],
                             )
                           ],
@@ -234,22 +280,24 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     );
   }
 
-  // --- NAVEGAÇÃO BLINDADA ---
   void _openSettings(BuildContext context) async {
     ref.read(keyEventServiceProvider).setGameMode(false);
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
     ref.read(keyEventServiceProvider).setGameMode(true);
   }
 
   void _openButtonMapping(BuildContext context) async {
     ref.read(keyEventServiceProvider).setGameMode(false);
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ButtonMappingScreen()));
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const ButtonMappingScreen()));
     ref.read(keyEventServiceProvider).setGameMode(true);
   }
 
   void _openHistory(BuildContext context) async {
     ref.read(keyEventServiceProvider).setGameMode(false);
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
     ref.read(keyEventServiceProvider).setGameMode(true);
   }
 
@@ -260,7 +308,6 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       (route) => false,
     );
   }
-  // -------------------------------------------------------------------------
 
   Future<void> _confirmReset(BuildContext context) async {
     final shouldReset = await showDialog<bool>(
@@ -268,15 +315,26 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
           builder: (context) {
             return AlertDialog(
               backgroundColor: AppTheme.surfaceVariant,
-              title: const Text('Nova partida', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
-              content: const Text('Tem certeza que deseja resetar o placar e iniciar uma nova partida?', style: TextStyle(color: AppTheme.onSurface)),
+              title: const Text('Nova partida',
+                  style: TextStyle(
+                      color: AppTheme.primary, fontWeight: FontWeight.bold)),
+              content: const Text(
+                  'Tem certeza que deseja resetar o placar e iniciar uma nova partida?',
+                  style: TextStyle(color: AppTheme.onSurface)),
               actions: [
-                TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar', style: TextStyle(color: AppTheme.onSurface))),
-                TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Nova partida', style: TextStyle(color: AppTheme.primary))),
+                TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Cancelar',
+                        style: TextStyle(color: AppTheme.onSurface))),
+                TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Nova partida',
+                        style: TextStyle(color: AppTheme.primary))),
               ],
             );
           },
-        ) ?? false;
+        ) ??
+        false;
     if (shouldReset) {
       ref.read(scoreStateProvider.notifier).reset();
       setState(() => _isMenuVisible = true);
@@ -295,11 +353,21 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: AppTheme.surfaceVariant,
-          title: const Text('Coin toss', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
-          content: Text('$winnerName ganhou o sorteio.\nEscolha se vai sacar ou receber primeiro.', style: const TextStyle(color: AppTheme.onSurface)),
+          title: const Text('Coin toss',
+              style: TextStyle(
+                  color: AppTheme.primary, fontWeight: FontWeight.bold)),
+          content: Text(
+              '$winnerName ganhou o sorteio.\nEscolha se vai sacar ou receber primeiro.',
+              style: const TextStyle(color: AppTheme.onSurface)),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop('receive'), child: const Text('Receber', style: TextStyle(color: AppTheme.onSurface))),
-            TextButton(onPressed: () => Navigator.of(context).pop('serve'), child: const Text('Sacar', style: TextStyle(color: AppTheme.primary))),
+            TextButton(
+                onPressed: () => Navigator.of(context).pop('receive'),
+                child: const Text('Receber',
+                    style: TextStyle(color: AppTheme.onSurface))),
+            TextButton(
+                onPressed: () => Navigator.of(context).pop('serve'),
+                child: const Text('Sacar',
+                    style: TextStyle(color: AppTheme.primary))),
           ],
         );
       },
@@ -314,10 +382,14 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     final language = config.ttsLanguage;
     if (language == 'pt-BR') {
       final choiceText = choice == 'serve' ? 'sacar' : 'receber';
-      await tts.speakCoinToss('$winnerName ganhou o sorteio e escolheu $choiceText primeiro.', config);
+      await tts.speakCoinToss(
+          '$winnerName ganhou o sorteio e escolheu $choiceText primeiro.',
+          config);
     } else {
       final choiceText = choice == 'serve' ? 'serve' : 'receive';
-      await tts.speakCoinToss('$winnerName won the coin toss and chose to $choiceText first.', config);
+      await tts.speakCoinToss(
+          '$winnerName won the coin toss and chose to $choiceText first.',
+          config);
     }
   }
 }
@@ -325,9 +397,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
 class _ScoreContent extends StatelessWidget {
   const _ScoreContent({
     required this.score,
-    required this.playerAName,
-    required this.playerBName,
-    required this.ttsLanguage,
+    required this.config,
     required this.clockLabel,
     required this.clockRemaining,
     required this.flashingIsA,
@@ -338,9 +408,7 @@ class _ScoreContent extends StatelessWidget {
   });
 
   final ScoreState score;
-  final String playerAName;
-  final String playerBName;
-  final String ttsLanguage;
+  final GameConfig config;
   final String clockLabel;
   final int? clockRemaining;
   final bool? flashingIsA;
@@ -354,8 +422,17 @@ class _ScoreContent extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(clockLabel.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w500)),
-        Text('$clockRemaining', style: TextStyle(color: neonColor, fontWeight: FontWeight.bold, fontSize: 80, height: 1.1)),
+        Text(clockLabel.toUpperCase(),
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 36,
+                fontWeight: FontWeight.w500)),
+        Text('$clockRemaining',
+            style: TextStyle(
+                color: neonColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 80,
+                height: 1.1)),
       ],
     );
   }
@@ -367,9 +444,18 @@ class _ScoreContent extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(clockLabel.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w500)),
+        Text(clockLabel.toUpperCase(),
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 36,
+                fontWeight: FontWeight.w500)),
         const SizedBox(width: 24),
-        Text('$clockRemaining', style: TextStyle(color: neonColor, fontWeight: FontWeight.bold, fontSize: 80, height: 1.1)),
+        Text('$clockRemaining',
+            style: TextStyle(
+                color: neonColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 80,
+                height: 1.1)),
       ],
     );
   }
@@ -396,13 +482,23 @@ class _ScoreContent extends StatelessWidget {
         }
       } else {
         const pts = ['0', '15', '30', '40'];
-        pA = score.pointsA < pts.length ? pts[score.pointsA] : '${score.pointsA}';
-        pB = score.pointsB < pts.length ? pts[score.pointsB] : '${score.pointsB}';
+        pA = score.pointsA < pts.length
+            ? pts[score.pointsA]
+            : '${score.pointsA}';
+        pB = score.pointsB < pts.length
+            ? pts[score.pointsB]
+            : '${score.pointsB}';
       }
     }
 
-    bool isMatchTiebreak = score.isTiebreak && score.gamesA == 0 && score.gamesB == 0;
-    final bool hasGames = !score.matchOver && !isMatchTiebreak && (score.gamesA > 0 || score.gamesB > 0 || score.setsA > 0 || score.setsB > 0);
+    bool isMatchTiebreak =
+        score.isTiebreak && score.gamesA == 0 && score.gamesB == 0;
+    final bool hasGames = !score.matchOver &&
+        !isMatchTiebreak &&
+        (score.gamesA > 0 ||
+            score.gamesB > 0 ||
+            score.setsA > 0 ||
+            score.setsB > 0);
     final bool hasPoints = !score.matchOver && (pA != '0' || pB != '0');
     final bool hasSets = score.setsA > 0 || score.setsB > 0;
 
@@ -410,9 +506,9 @@ class _ScoreContent extends StatelessWidget {
     const whiteColor = Colors.white;
     const grayColor = Color(0xFF9E9E9E);
 
-    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    final isPortrait =
+        MediaQuery.of(context).orientation == Orientation.portrait;
 
-    // Determina cores de flash para cada jogador
     Color bgA = Colors.transparent;
     Color bgB = Colors.transparent;
     Color pointColorA = neonColor;
@@ -436,9 +532,10 @@ class _ScoreContent extends StatelessWidget {
         children: [
           SizedBox(
             height: 160,
-            child: clockRemaining != null ? _buildBigClockPortrait(neonColor) : null,
+            child: clockRemaining != null
+                ? _buildBigClockPortrait(neonColor)
+                : null,
           ),
-
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: onPointA,
@@ -446,28 +543,29 @@ class _ScoreContent extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 60),
               decoration: BoxDecoration(
-                color: bgA,
-                borderRadius: BorderRadius.circular(8),
-              ),
+                  color: bgA, borderRadius: BorderRadius.circular(8)),
               child: _buildPlayer(
                 isPortrait: isPortrait,
-                name: playerAName,
+                name: config.playerAName,
                 isServer: score.serverIsA,
                 previousSetsGames: score.previousSetsGamesA,
+                previousSetsTbPts: score.previousSetsTiebreakPointsA,
                 games: score.gamesA,
                 points: pA,
                 hasSets: hasSets,
                 hasGames: hasGames,
                 hasPoints: hasPoints,
                 neonColor: pointColorA,
-                whiteColor: flashingIsA == true && flashState ? AppTheme.surface : whiteColor,
-                grayColor: flashingIsA == true && flashState ? AppTheme.surface : grayColor,
+                whiteColor: flashingIsA == true && flashState
+                    ? AppTheme.surface
+                    : whiteColor,
+                grayColor: flashingIsA == true && flashState
+                    ? AppTheme.surface
+                    : grayColor,
               ),
             ),
           ),
-
           const SizedBox(height: 32),
-
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: onPointB,
@@ -475,22 +573,25 @@ class _ScoreContent extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 60),
               decoration: BoxDecoration(
-                color: bgB,
-                borderRadius: BorderRadius.circular(8),
-              ),
+                  color: bgB, borderRadius: BorderRadius.circular(8)),
               child: _buildPlayer(
                 isPortrait: isPortrait,
-                name: playerBName,
+                name: config.playerBName,
                 isServer: !score.serverIsA,
                 previousSetsGames: score.previousSetsGamesB,
+                previousSetsTbPts: score.previousSetsTiebreakPointsB,
                 games: score.gamesB,
                 points: pB,
                 hasSets: hasSets,
                 hasGames: hasGames,
                 hasPoints: hasPoints,
                 neonColor: pointColorB,
-                whiteColor: flashingIsA == false && flashState ? AppTheme.surface : whiteColor,
-                grayColor: flashingIsA == false && flashState ? AppTheme.surface : grayColor,
+                whiteColor: flashingIsA == false && flashState
+                    ? AppTheme.surface
+                    : whiteColor,
+                grayColor: flashingIsA == false && flashState
+                    ? AppTheme.surface
+                    : grayColor,
               ),
             ),
           ),
@@ -510,28 +611,29 @@ class _ScoreContent extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 60),
                   decoration: BoxDecoration(
-                    color: bgA,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                      color: bgA, borderRadius: BorderRadius.circular(8)),
                   child: _buildPlayer(
                     isPortrait: isPortrait,
-                    name: playerAName,
+                    name: config.playerAName,
                     isServer: score.serverIsA,
                     previousSetsGames: score.previousSetsGamesA,
+                    previousSetsTbPts: score.previousSetsTiebreakPointsA,
                     games: score.gamesA,
                     points: pA,
                     hasSets: hasSets,
                     hasGames: hasGames,
                     hasPoints: hasPoints,
                     neonColor: pointColorA,
-                    whiteColor: flashingIsA == true && flashState ? AppTheme.surface : whiteColor,
-                    grayColor: flashingIsA == true && flashState ? AppTheme.surface : grayColor,
+                    whiteColor: flashingIsA == true && flashState
+                        ? AppTheme.surface
+                        : whiteColor,
+                    grayColor: flashingIsA == true && flashState
+                        ? AppTheme.surface
+                        : grayColor,
                   ),
                 ),
               ),
-
               const SizedBox(height: 80),
-
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: onPointB,
@@ -539,28 +641,30 @@ class _ScoreContent extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 60),
                   decoration: BoxDecoration(
-                    color: bgB,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                      color: bgB, borderRadius: BorderRadius.circular(8)),
                   child: _buildPlayer(
                     isPortrait: isPortrait,
-                    name: playerBName,
+                    name: config.playerBName,
                     isServer: !score.serverIsA,
                     previousSetsGames: score.previousSetsGamesB,
+                    previousSetsTbPts: score.previousSetsTiebreakPointsB,
                     games: score.gamesB,
                     points: pB,
                     hasSets: hasSets,
                     hasGames: hasGames,
                     hasPoints: hasPoints,
                     neonColor: pointColorB,
-                    whiteColor: flashingIsA == false && flashState ? AppTheme.surface : whiteColor,
-                    grayColor: flashingIsA == false && flashState ? AppTheme.surface : grayColor,
+                    whiteColor: flashingIsA == false && flashState
+                        ? AppTheme.surface
+                        : whiteColor,
+                    grayColor: flashingIsA == false && flashState
+                        ? AppTheme.surface
+                        : grayColor,
                   ),
                 ),
               ),
             ],
           ),
-
           if (clockRemaining != null)
             Positioned.fill(
               child: Align(
@@ -574,6 +678,8 @@ class _ScoreContent extends StatelessWidget {
         ],
       );
     }
+
+    final ttsLanguage = config.ttsLanguage;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -591,13 +697,12 @@ class _ScoreContent extends StatelessWidget {
               ),
             ),
           ),
-
           if (score.matchOver && score.winnerIsA != null) ...[
             const SizedBox(height: 24),
             Text(
               ttsLanguage == 'pt-BR'
-                  ? 'Vencedor: ${score.winnerIsA! ? playerAName : playerBName}'
-                  : 'Winner: ${score.winnerIsA! ? playerAName : playerBName}',
+                  ? 'Vencedor: ${score.winnerIsA! ? config.playerAName : config.playerBName}'
+                  : 'Winner: ${score.winnerIsA! ? config.playerAName : config.playerBName}',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: neonColor,
                     fontWeight: FontWeight.bold,
@@ -609,11 +714,87 @@ class _ScoreContent extends StatelessWidget {
     );
   }
 
+  /// Monta o widget de um set anterior com formatação de tiebreak.
+  /// Se o set teve tiebreak, mostra o vencedor com 7 e o perdedor com 6^pontos.
+  Widget _buildPreviousSetScore({
+    required int gamesA,
+    required int gamesB,
+    required int tbPtsA,
+    required int tbPtsB,
+    required Color neonColor,
+    required Color whiteColor,
+    required Color grayColor,
+  }) {
+    // Se houve tiebreak (um dos valores > 0), aplica formatação especial
+    if (tbPtsA > 0 || tbPtsB > 0) {
+      // Quem ganhou mais games é o vencedor do set
+      final aWon = gamesA > gamesB;
+      final winnerGames = aWon ? gamesA : gamesB;
+      final loserTbPts = aWon ? tbPtsB : tbPtsA;
+      final loserDisplay = aWon ? gamesB : gamesA;
+
+      return SizedBox(
+        width: 200,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Vencedor: sempre 7
+            Text('$winnerGames',
+                style: TextStyle(
+                    fontSize: 150,
+                    color: grayColor,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(width: 8),
+            // Perdedor: 6^pontos
+            Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '$loserDisplay',
+                      style: TextStyle(
+                          fontSize: 150,
+                          color: grayColor,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    if (loserTbPts > 0)
+                      TextSpan(
+                        text: '$loserTbPts',
+                        style: TextStyle(
+                            fontSize: 70,
+                            color: grayColor,
+                            fontWeight: FontWeight.bold),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Sem tiebreak: mostra os games normalmente
+    return SizedBox(
+      width: 160,
+      child: Center(
+        child: Text(
+          '$gamesA',
+          style: TextStyle(
+              fontSize: 150, color: grayColor, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPlayer({
     required bool isPortrait,
     required String name,
     required bool isServer,
     required List<int> previousSetsGames,
+    required List<int> previousSetsTbPts,
     required int games,
     required String points,
     required bool hasSets,
@@ -631,7 +812,9 @@ class _ScoreContent extends StatelessWidget {
           child: Icon(Icons.circle, color: neonColor, size: 48),
         ),
         const SizedBox(width: 16),
-        Text(name, style: TextStyle(fontSize: 50, fontWeight: FontWeight.bold, color: whiteColor)),
+        Text(name,
+            style: TextStyle(
+                fontSize: 50, fontWeight: FontWeight.bold, color: whiteColor)),
       ],
     );
 
@@ -639,17 +822,39 @@ class _ScoreContent extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (hasSets) ...[
-          for (int pastGameScore in previousSetsGames) ...[
-            SizedBox(width: 160, child: Center(child: Text('$pastGameScore', style: TextStyle(fontSize: 150, color: grayColor, fontWeight: FontWeight.bold)))),
+          for (int i = 0; i < previousSetsGames.length; i++) ...[
+            _buildPreviousSetScore(
+              gamesA: previousSetsGames[i],
+              gamesB: 0, // Não aplicável aqui, mostramos só o valor do jogador
+              tbPtsA: previousSetsTbPts.length > i ? previousSetsTbPts[i] : 0,
+              tbPtsB: 0,
+              neonColor: neonColor,
+              whiteColor: whiteColor,
+              grayColor: grayColor,
+            ),
             const SizedBox(width: 24),
           ],
         ],
         if (hasGames) ...[
-          SizedBox(width: 160, child: Center(child: Text('$games', style: TextStyle(fontSize: 150, color: whiteColor, fontWeight: FontWeight.bold)))),
+          SizedBox(
+              width: 160,
+              child: Center(
+                  child: Text('$games',
+                      style: TextStyle(
+                          fontSize: 150,
+                          color: whiteColor,
+                          fontWeight: FontWeight.bold)))),
           if (hasPoints) const SizedBox(width: 24),
         ],
         if (hasPoints)
-          SizedBox(width: 220, child: Center(child: Text(points, style: TextStyle(fontSize: 150, color: neonColor, fontWeight: FontWeight.bold)))),
+          SizedBox(
+              width: 220,
+              child: Center(
+                  child: Text(points,
+                      style: TextStyle(
+                          fontSize: 150,
+                          color: neonColor,
+                          fontWeight: FontWeight.bold)))),
       ],
     );
 

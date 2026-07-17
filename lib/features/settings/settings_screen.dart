@@ -15,8 +15,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late TextEditingController _sportController;
-  late TextEditingController _playerAController;
-  late TextEditingController _playerBController;
   late int _gamesToWinSet;
   late int _minGameDifference;
   late int _maxSets;
@@ -28,17 +26,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late bool _withAdvantage;
   late String _ttsLanguage;
   late int _serveClockSeconds;
-  late int _breakBetweenGamesSeconds;
+  late int _breakBetweenOddGamesSeconds;
+  late int _breakBetweenEvenGamesSeconds;
   late int _breakBetweenSetsSeconds;
   late bool _timeWarningSound;
-  late String _audioOutput;
+  // Flash visual
+  late bool _pointFlashEnabled;
+  late int _pointFlashDurationMs;
+  late int _pointFlashFrequencyHz;
+  // Auto-save
+  late bool _autoSaveToHistory;
+  late int _autoSaveDelaySeconds;
 
   @override
   void initState() {
     super.initState();
     _sportController = TextEditingController();
-    _playerAController = TextEditingController();
-    _playerBController = TextEditingController();
     _gamesToWinSet = 6;
     _minGameDifference = 2;
     _maxSets = 3;
@@ -50,10 +53,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _withAdvantage = true;
     _ttsLanguage = 'pt-BR';
     _serveClockSeconds = 0;
-    _breakBetweenGamesSeconds = 0;
+    _breakBetweenOddGamesSeconds = 0;
+    _breakBetweenEvenGamesSeconds = 0;
     _breakBetweenSetsSeconds = 0;
     _timeWarningSound = true;
-    _audioOutput = 'speaker';
+    _pointFlashEnabled = false;
+    _pointFlashDurationMs = 600;
+    _pointFlashFrequencyHz = 4;
+    _autoSaveToHistory = true;
+    _autoSaveDelaySeconds = 10;
   }
 
   bool _formInitialized = false;
@@ -63,8 +71,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (config == null || _formInitialized) return;
     _formInitialized = true;
     _sportController.text = config.sportName;
-    _playerAController.text = config.playerAName;
-    _playerBController.text = config.playerBName;
     setState(() {
       _gamesToWinSet = config.gamesToWinSet;
       _minGameDifference = config.minGameDifference;
@@ -77,18 +83,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _withAdvantage = config.withAdvantage;
       _ttsLanguage = config.ttsLanguage;
       _serveClockSeconds = config.serveClockSeconds;
-      _breakBetweenGamesSeconds = config.breakBetweenGamesSeconds;
+      _breakBetweenOddGamesSeconds = config.breakBetweenOddGamesSeconds;
+      _breakBetweenEvenGamesSeconds = config.breakBetweenEvenGamesSeconds;
       _breakBetweenSetsSeconds = config.breakBetweenSetsSeconds;
       _timeWarningSound = config.timeWarningSound;
-      _audioOutput = config.audioOutput;
+      _pointFlashEnabled = config.pointFlashEnabled;
+      _pointFlashDurationMs = config.pointFlashDurationMs;
+      _pointFlashFrequencyHz = config.pointFlashFrequencyHz;
+      _autoSaveToHistory = config.autoSaveToHistory;
+      _autoSaveDelaySeconds = config.autoSaveDelaySeconds;
     });
   }
 
   @override
   void dispose() {
     _sportController.dispose();
-    _playerAController.dispose();
-    _playerBController.dispose();
     super.dispose();
   }
 
@@ -102,7 +111,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       appBar: AppBar(
         title: const Text(
           'Configurações da partida',
-          style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+          style:
+              TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppTheme.primary),
@@ -119,100 +129,117 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
-      body: SafeArea( // Protege contra barras do sistema
+      body: SafeArea(
         child: ListView(
           key: ValueKey(_formKey),
-          // O "bottom: 64" garante que o final da lista (o botão) nunca fique colado no rodapé
-          padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 64),
+          padding:
+              const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 64),
           children: [
             TextField(
               controller: _sportController,
               decoration: const InputDecoration(
-                labelText: 'Configuração da partida',
-                border: OutlineInputBorder(),
-              ),
-              style: const TextStyle(color: AppTheme.onSurface),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _playerAController,
-              decoration: const InputDecoration(
-                labelText: 'Jogador / Dupla A',
-                border: OutlineInputBorder(),
-              ),
-              style: const TextStyle(color: AppTheme.onSurface),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _playerBController,
-              decoration: const InputDecoration(
-                labelText: 'Jogador / Dupla B',
+                labelText: 'Nome do esporte / configuração',
                 border: OutlineInputBorder(),
               ),
               style: const TextStyle(color: AppTheme.onSurface),
             ),
             const SizedBox(height: 24),
-            const Text('Games e Sets', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
-            _numberField('Games para ganhar o set', _gamesToWinSet, (v) => _gamesToWinSet = v),
-            _numberField('Diferença mínima de games', _minGameDifference, (v) => _minGameDifference = v),
-            _numberField('Número de sets (melhor de)', _maxSets, (v) => _maxSets = v),
+
+            // --- GAMES E SETS ---
+            const Text('Games e Sets',
+                style: TextStyle(
+                    color: AppTheme.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            _numberField('Games para ganhar o set', _gamesToWinSet,
+                (v) => _gamesToWinSet = v),
+            _numberField('Diferença mínima de games', _minGameDifference,
+                (v) => _minGameDifference = v),
+            _numberField(
+                'Número de sets (melhor de)', _maxSets, (v) => _maxSets = v),
             const SizedBox(height: 16),
-            const Text('Tiebreak', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
-            _numberField('Tiebreak ao empatar em', _tiebreakAt, (v) => _tiebreakAt = v),
-            _numberField('Pontos para ganhar tiebreak', _tiebreakPoints, (v) => _tiebreakPoints = v),
-            _numberField('Diferença no tiebreak', _tiebreakDifference, (v) => _tiebreakDifference = v),
+
+            // --- TIEBREAK ---
+            const Text('Tiebreak',
+                style: TextStyle(
+                    color: AppTheme.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            _numberField(
+                'Tiebreak ao empatar em', _tiebreakAt, (v) => _tiebreakAt = v),
+            _numberField('Pontos para ganhar tiebreak', _tiebreakPoints,
+                (v) => _tiebreakPoints = v),
+            _numberField('Diferença no tiebreak', _tiebreakDifference,
+                (v) => _tiebreakDifference = v),
             SwitchListTile(
-              title: const Text('Tiebreak no set decisivo', style: TextStyle(color: AppTheme.onSurface)),
+              title: const Text('Tiebreak como set decisivo',
+                  style: TextStyle(color: AppTheme.onSurface)),
               value: _useFinalSetTiebreak,
               onChanged: (v) => setState(() => _useFinalSetTiebreak = v),
               activeColor: AppTheme.primary,
             ),
             const SizedBox(height: 24),
 
-            const Text('Cronômetro e Tempos', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
-            _numberField('Relógio de saque (segundos)', _serveClockSeconds, (v) => _serveClockSeconds = v, min: 0),
-            _numberField('Intervalo entre games (segundos)', _breakBetweenGamesSeconds, (v) => _breakBetweenGamesSeconds = v, min: 0),
-            _numberField('Intervalo entre sets (segundos)', _breakBetweenSetsSeconds, (v) => _breakBetweenSetsSeconds = v, min: 0),
+            // --- CRONÔMETRO E TEMPOS ---
+            const Text('Cronômetro e Tempos',
+                style: TextStyle(
+                    color: AppTheme.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            _numberField('Relógio de saque (segundos)', _serveClockSeconds,
+                (v) => _serveClockSeconds = v,
+                min: 0),
+            _numberField(
+                'Intervalo entre games ímpares (segundos)',
+                _breakBetweenOddGamesSeconds,
+                (v) => _breakBetweenOddGamesSeconds = v,
+                min: 0),
+            _numberField(
+                'Intervalo entre games pares (segundos)',
+                _breakBetweenEvenGamesSeconds,
+                (v) => _breakBetweenEvenGamesSeconds = v,
+                min: 0),
+            _numberField('Intervalo entre sets (segundos)',
+                _breakBetweenSetsSeconds, (v) => _breakBetweenSetsSeconds = v,
+                min: 0),
             SwitchListTile(
-              title: const Text('Aviso sonoro de tempo esgotado', style: TextStyle(color: AppTheme.onSurface)),
+              title: const Text('Aviso sonoro "Tempo" (games ímpares e sets)',
+                  style: TextStyle(color: AppTheme.onSurface)),
               value: _timeWarningSound,
               onChanged: (v) => setState(() => _timeWarningSound = v),
               activeColor: AppTheme.primary,
             ),
             const SizedBox(height: 24),
 
-            const Text('Saída de áudio do TTS', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              value: _audioOutput,
-              dropdownColor: AppTheme.surfaceVariant,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: 'speaker',
-                  child: Text('Alto-falante do aparelho'),
-                ),
-                DropdownMenuItem(
-                  value: 'bluetooth',
-                  child: Text('Dispositivo Bluetooth (fone/caixa)'),
-                ),
-                DropdownMenuItem(
-                  value: 'headphones',
-                  child: Text('Fone de ouvido (cabo)'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _audioOutput = value;
-                });
-              },
+            // --- FLASH VISUAL ---
+            const Text('Flash Visual ao Marcar Ponto',
+                style: TextStyle(
+                    color: AppTheme.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            SwitchListTile(
+              title: const Text('Ativar flash visual',
+                  style: TextStyle(color: AppTheme.onSurface)),
+              value: _pointFlashEnabled,
+              onChanged: (v) => setState(() => _pointFlashEnabled = v),
+              activeColor: AppTheme.primary,
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Idioma', style: TextStyle(color: AppTheme.primary, fontSize: 18, fontWeight: FontWeight.bold)),
+            if (_pointFlashEnabled) ...[
+              _numberField('Frequência (vezes/seg)', _pointFlashFrequencyHz,
+                  (v) => _pointFlashFrequencyHz = v,
+                  min: 1),
+              _numberField('Duração total (ms)', _pointFlashDurationMs,
+                  (v) => _pointFlashDurationMs = v,
+                  min: 100),
+            ],
+            const SizedBox(height: 24),
+
+            // --- IDIOMA DE FALA ---
+            const Text('Idioma de Fala',
+                style: TextStyle(
+                    color: AppTheme.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               value: _ttsLanguage,
@@ -237,9 +264,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 });
               },
             ),
-            
-            const SizedBox(height: 48), // Empurra o botão bem pra baixo
-            
+            const SizedBox(height: 24),
+
+            // --- AUTO-SAVE ---
+            const Text('Salvar no Histórico',
+                style: TextStyle(
+                    color: AppTheme.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            SwitchListTile(
+              title: const Text('Salvar automaticamente ao fim da partida',
+                  style: TextStyle(color: AppTheme.onSurface)),
+              value: _autoSaveToHistory,
+              onChanged: (v) => setState(() => _autoSaveToHistory = v),
+              activeColor: AppTheme.primary,
+            ),
+            if (_autoSaveToHistory)
+              _numberField('Aguardar antes de salvar (segundos)',
+                  _autoSaveDelaySeconds, (v) => _autoSaveDelaySeconds = v,
+                  min: 0),
+
+            const SizedBox(height: 48),
+
             FilledButton(
               onPressed: _save,
               style: FilledButton.styleFrom(
@@ -247,7 +293,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 foregroundColor: AppTheme.onPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: const Text("Salvar configurações", style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text("Salvar configurações",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -265,7 +312,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           backgroundColor: AppTheme.surfaceVariant,
           title: const Text(
             'Escolher configuração',
-            style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+            style:
+                TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
           ),
           content: SizedBox(
             width: double.maxFinite,
@@ -278,6 +326,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: Text(
                     preset.name,
                     style: const TextStyle(color: AppTheme.onSurface),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete, color: AppTheme.error),
+                    onPressed: () async {
+                      await ref
+                          .read(gamePresetsProvider.notifier)
+                          .deletePreset(index);
+                      if (context.mounted) Navigator.of(context).pop();
+                    },
                   ),
                   onTap: () => Navigator.of(context).pop(index),
                 );
@@ -295,8 +352,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _loadPresetIntoForm(GameConfig config) {
     _sportController.text = config.sportName;
-    _playerAController.text = config.playerAName;
-    _playerBController.text = config.playerBName;
     setState(() {
       _gamesToWinSet = config.gamesToWinSet;
       _minGameDifference = config.minGameDifference;
@@ -309,10 +364,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _withAdvantage = config.withAdvantage;
       _ttsLanguage = config.ttsLanguage;
       _serveClockSeconds = config.serveClockSeconds;
-      _breakBetweenGamesSeconds = config.breakBetweenGamesSeconds;
+      _breakBetweenOddGamesSeconds = config.breakBetweenOddGamesSeconds;
+      _breakBetweenEvenGamesSeconds = config.breakBetweenEvenGamesSeconds;
       _breakBetweenSetsSeconds = config.breakBetweenSetsSeconds;
       _timeWarningSound = config.timeWarningSound;
-      _audioOutput = config.audioOutput;
+      _pointFlashEnabled = config.pointFlashEnabled;
+      _pointFlashDurationMs = config.pointFlashDurationMs;
+      _pointFlashFrequencyHz = config.pointFlashFrequencyHz;
+      _autoSaveToHistory = config.autoSaveToHistory;
+      _autoSaveDelaySeconds = config.autoSaveDelaySeconds;
       _formKey++;
     });
   }
@@ -347,12 +407,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _save() {
-    final name =
-        _sportController.text.trim().isEmpty ? 'Configuração da partida' : _sportController.text.trim();
+    final name = _sportController.text.trim().isEmpty
+        ? 'Configuração da partida'
+        : _sportController.text.trim();
+    // Presets NÃO incluem nomes de jogadores
     final config = GameConfig(
       sportName: name,
-      playerAName: _playerAController.text.trim().isEmpty ? 'Time A' : _playerAController.text.trim(),
-      playerBName: _playerBController.text.trim().isEmpty ? 'Time B' : _playerBController.text.trim(),
       gamesToWinSet: _gamesToWinSet,
       minGameDifference: _minGameDifference,
       maxSets: _maxSets,
@@ -363,13 +423,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       useFinalSetTiebreak: _useFinalSetTiebreak,
       withAdvantage: _withAdvantage,
       miniMatchGames: false,
-      miniMatchGamesCount: 0,
+      miniMatchGamesCount: 3,
       ttsLanguage: _ttsLanguage,
       serveClockSeconds: _serveClockSeconds,
-      breakBetweenGamesSeconds: _breakBetweenGamesSeconds,
+      breakBetweenOddGamesSeconds: _breakBetweenOddGamesSeconds,
+      breakBetweenEvenGamesSeconds: _breakBetweenEvenGamesSeconds,
       breakBetweenSetsSeconds: _breakBetweenSetsSeconds,
       timeWarningSound: _timeWarningSound,
-      audioOutput: _audioOutput,
+      pointFlashEnabled: _pointFlashEnabled,
+      pointFlashDurationMs: _pointFlashDurationMs,
+      pointFlashFrequencyHz: _pointFlashFrequencyHz,
+      autoSaveToHistory: _autoSaveToHistory,
+      autoSaveDelaySeconds: _autoSaveDelaySeconds,
     );
     ref.read(gameConfigProvider.notifier).updateConfig(config);
     ref.read(gamePresetsProvider.notifier).savePreset(name, config);

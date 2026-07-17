@@ -114,7 +114,8 @@ class ScoringEngine {
 
   bool _isSetOver(int ga, int gb) {
     if (config.miniMatchGames) {
-      return ga >= config.miniMatchGamesCount || gb >= config.miniMatchGamesCount;
+      return ga >= config.miniMatchGamesCount ||
+          gb >= config.miniMatchGamesCount;
     }
     if (ga >= config.gamesToWinSet && ga - gb >= config.minGameDifference) {
       return true;
@@ -142,11 +143,13 @@ class ScoringEngine {
 
     final pointsToWin = _getTiebreakPointsToWin(state);
     final diff = config.tiebreakDifference;
-    final tiebreakOver =
-        (ta >= pointsToWin && ta - tb >= diff) || (tb >= pointsToWin && tb - ta >= diff);
+    final tiebreakOver = (ta >= pointsToWin && ta - tb >= diff) ||
+        (tb >= pointsToWin && tb - ta >= diff);
 
     int ptsBefore = state.tiebreakPointsA + state.tiebreakPointsB;
-    bool firstServerIsA = ((ptsBefore % 4 == 1) || (ptsBefore % 4 == 2)) ? !state.serverIsA : state.serverIsA;
+    bool firstServerIsA = ((ptsBefore % 4 == 1) || (ptsBefore % 4 == 2))
+        ? !state.serverIsA
+        : state.serverIsA;
 
     if (!tiebreakOver) {
       bool swapServer = ((ta + tb) % 2 != 0);
@@ -165,9 +168,12 @@ class ScoringEngine {
     } else {
       gb++;
     }
-    
+
     // Passamos os pontos exatos do tiebreak (ta e tb) para o motor salvar caso seja Super Tiebreak
-    return _finishSet(state, ga, gb, forTeamA, nextHistory, nextServerIsA: !firstServerIsA, tiebreakPointsA: ta, tiebreakPointsB: tb);
+    return _finishSet(state, ga, gb, forTeamA, nextHistory,
+        nextServerIsA: !firstServerIsA,
+        tiebreakPointsA: ta,
+        tiebreakPointsB: tb);
   }
 
   int _getTiebreakPointsToWin(ScoreState state) {
@@ -176,19 +182,29 @@ class ScoringEngine {
   }
 
   ScoreState _finishSet(ScoreState state, int ga, int gb, bool setWinnerIsA,
-      List<ScoreState> nextHistory, {bool? nextServerIsA, int? tiebreakPointsA, int? tiebreakPointsB}) {
+      List<ScoreState> nextHistory,
+      {bool? nextServerIsA, int? tiebreakPointsA, int? tiebreakPointsB}) {
     int sa = state.setsA;
     int sb = state.setsB;
-    
+
     // Identifica se estamos encerrando um Super Tiebreak (Match Tiebreak)
-    bool isMatchTiebreak = state.isTiebreak && state.gamesA == 0 && state.gamesB == 0;
-    
+    bool isMatchTiebreak =
+        state.isTiebreak && state.gamesA == 0 && state.gamesB == 0;
+
     // Se for Super Tiebreak, anota os pontos reais (ex: 11 a 9). Se for normal, anota os games (ex: 6 a 4)
     int recordedGamesA = isMatchTiebreak ? (tiebreakPointsA ?? 0) : ga;
     int recordedGamesB = isMatchTiebreak ? (tiebreakPointsB ?? 0) : gb;
 
-    final newPreviousSetsGamesA = List<int>.from(state.previousSetsGamesA)..add(recordedGamesA);
-    final newPreviousSetsGamesB = List<int>.from(state.previousSetsGamesB)..add(recordedGamesB);
+    final newPreviousSetsGamesA = List<int>.from(state.previousSetsGamesA)
+      ..add(recordedGamesA);
+    final newPreviousSetsGamesB = List<int>.from(state.previousSetsGamesB)
+      ..add(recordedGamesB);
+
+    // Salva pontos de tiebreak do set que acabou (0 se não houve tiebreak)
+    final newPreviousTbPtsA = List<int>.from(state.previousSetsTiebreakPointsA)
+      ..add(state.isTiebreak ? (tiebreakPointsA ?? state.tiebreakPointsA) : 0);
+    final newPreviousTbPtsB = List<int>.from(state.previousSetsTiebreakPointsB)
+      ..add(state.isTiebreak ? (tiebreakPointsB ?? state.tiebreakPointsB) : 0);
 
     if (setWinnerIsA) {
       sa++;
@@ -197,9 +213,10 @@ class ScoringEngine {
     }
 
     final matchOver = _isMatchOver(sa, sb);
-    
+
     int nextSet = state.currentSet + 1;
-    bool nextSetIsMatchTiebreak = (!matchOver && nextSet == config.maxSets && config.useFinalSetTiebreak);
+    bool nextSetIsMatchTiebreak =
+        (!matchOver && nextSet == config.maxSets && config.useFinalSetTiebreak);
 
     return state.copyWith(
       pointsA: 0,
@@ -210,6 +227,8 @@ class ScoringEngine {
       setsB: sb,
       previousSetsGamesA: newPreviousSetsGamesA,
       previousSetsGamesB: newPreviousSetsGamesB,
+      previousSetsTiebreakPointsA: newPreviousTbPtsA,
+      previousSetsTiebreakPointsB: newPreviousTbPtsB,
       currentSet: nextSet,
       isTiebreak: nextSetIsMatchTiebreak,
       tiebreakPointsA: 0,
