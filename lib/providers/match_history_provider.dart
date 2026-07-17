@@ -60,9 +60,15 @@ class MatchHistoryNotifier
     await _saveHistory(updated);
   }
 
+  Future<void> deleteRecord(String id) async {
+    final current = state.valueOrNull ?? <MatchRecord>[];
+    final updated = current.where((r) => r.id != id).toList();
+    state = AsyncValue.data(updated);
+    await _saveHistory(updated);
+  }
+
   Future<void> clear() async {
     state = const AsyncValue.data(<MatchRecord>[]);
     await _saveHistory(<MatchRecord>[]);
   }
 }
-

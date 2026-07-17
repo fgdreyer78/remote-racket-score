@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_theme.dart';
 import '../../models/match_record.dart';
 import '../../providers/match_history_provider.dart';
+import 'match_detail_screen.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -39,7 +41,7 @@ class HistoryScreen extends ConsumerWidget {
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppTheme.primary),
         ),
-        error: (e, _) => Center(
+        error: (e, _) => const Center(
           child: Text(
             'Erro ao carregar histórico',
             style: TextStyle(color: AppTheme.error, fontSize: 16),
@@ -69,9 +71,54 @@ class HistoryScreen extends ConsumerWidget {
           return ListView.builder(
             padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: records.length,
-            itemBuilder: (context, index) => _MatchTile(record: records[index]),
+            itemBuilder: (context, index) => _MatchTile(
+              record: records[index],
+              onDelete: () => _confirmDelete(context, ref, records[index]),
+              onTap: () => _openDetail(context, records[index]),
+            ),
           );
         },
+      ),
+    );
+  }
+
+  void _openDetail(BuildContext context, MatchRecord record) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MatchDetailScreen(record: record),
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref, MatchRecord record) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceVariant,
+        title: const Text(
+          'Apagar partida?',
+          style:
+              TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          '${record.playerAName} vs ${record.playerBName}',
+          style: const TextStyle(color: AppTheme.onSurface),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child:
+                const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(matchHistoryProvider.notifier).deleteRecord(record.id);
+              Navigator.of(ctx).pop();
+            },
+            child:
+                const Text('Apagar', style: TextStyle(color: AppTheme.error)),
+          ),
+        ],
       ),
     );
   }
@@ -111,58 +158,15 @@ class HistoryScreen extends ConsumerWidget {
 }
 
 class _MatchTile extends StatelessWidget {
-  const _MatchTile({required this.record});
+  const _MatchTile({
+    required this.record,
+    required this.onDelete,
+    required this.onTap,
+  });
 
   final MatchRecord record;
-
-  /// Reconstrói o placar final a partir da lista de pontos.
-  _ScoreSummary get _summary {
-    int setsA = 0;
-    int setsB = 0;
-    int gamesA = 0;
-    int gamesB = 0;
-    int currentSet = 1;
-    int setsToWin = record.configSnapshot.gamesToWinSet;
-    int maxSets = record.configSnapshot.maxSets;
-    int tiebreakAt = record.configSnapshot.tiebreakAt;
-    int minDiff = record.configSnapshot.minGameDifference;
-
-    // Rastreamento de games por set
-    int setGamesA = 0;
-    int setGamesB = 0;
-
-    for (final point in record.points) {
-      if (point.scorerIsA) {
-        gamesA++;
-        setGamesA++;
-      } else {
-        gamesB++;
-        setGamesB++;
-      }
-
-      // Verifica se alguém ganhou o set
-      final canWinSet = setGamesA >= setsToWin || setGamesB >= setsToWin;
-      final hasDiff = (setGamesA - setGamesB).abs() >= minDiff;
-      final maxSetsReached = setGamesA >= tiebreakAt && setGamesB >= tiebreakAt;
-
-      if (canWinSet && hasDiff || maxSetsReached) {
-        if (setGamesA > setGamesB) {
-          setsA++;
-        } else {
-          setsB++;
-        }
-        // Próximo set
-        setGamesA = 0;
-        setGamesB = 0;
-        currentSet++;
-
-        // Se alguém já ganhou mais da metade dos sets, para
-        if (setsA > maxSets ~/ 2 || setsB > maxSets ~/ 2) break;
-      }
-    }
-
-    return _ScoreSummary(setsA: setsA, setsB: setsB);
-  }
+  final VoidCallback onDelete;
+  final VoidCallback onTap;
 
   String _formatDate(DateTime dt) {
     final d = dt.day.toString().padLeft(2, '0');
@@ -182,139 +186,169 @@ class _MatchTile extends StatelessWidget {
     return '${h}h${m > 0 ? ' ${m}min' : ''}';
   }
 
+  /// Reconstrói o placar final a partir da lista de pontos.
+  _ScoreSummary get _summary {
+    int setsA = 0;
+    int setsB = 0;
+    int setGamesA = 0;
+    int setGamesB = 0;
+    int setsToWin = record.configSnapshot.gamesToWinSet;
+    int tiebreakAt = record.configSnapshot.tiebreakAt;
+    int minDiff = record.configSnapshot.minGameDifference;
+
+    for (final point in record.points) {
+      if (point.scorerIsA) {
+        setGamesA++;
+      } else {
+        setGamesB++;
+      }
+
+      final canWinSet = setGamesA >= setsToWin || setGamesB >= setsToWin;
+      final hasDiff = (setGamesA - setGamesB).abs() >= minDiff;
+      final maxSetsReached = setGamesA >= tiebreakAt && setGamesB >= tiebreakAt;
+
+      if (canWinSet && hasDiff || maxSetsReached) {
+        if (setGamesA > setGamesB) {
+          setsA++;
+        } else {
+          setsB++;
+        }
+        setGamesA = 0;
+        setGamesB = 0;
+
+        if (setsA > record.configSnapshot.maxSets ~/ 2 ||
+            setsB > record.configSnapshot.maxSets ~/ 2) break;
+      }
+    }
+
+    return _ScoreSummary(setsA: setsA, setsB: setsB);
+  }
+
   @override
   Widget build(BuildContext context) {
     final summary = _summary;
+    final neonColor = AppTheme.primary;
+    final aWon = summary.setsA > summary.setsB;
 
     return Card(
       color: AppTheme.surfaceVariant,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Cabeçalho: config name e data
-            Row(
-              children: [
-                Icon(Icons.sports_tennis, color: AppTheme.primary, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    record.configName,
-                    style: const TextStyle(
-                      color: AppTheme.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Cabeçalho: data e duração
+              Row(
+                children: [
+                  const Icon(Icons.sports_tennis,
+                      color: AppTheme.primary, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      record.configName,
+                      style: const TextStyle(
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
-                ),
-                Text(
-                  _formatDate(record.startedAt),
-                  style: const TextStyle(color: Colors.white38, fontSize: 12),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Placar final
-            Row(
-              children: [
-                // Jogador A
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        record.playerAName,
-                        style: TextStyle(
-                          color: summary.setsA > summary.setsB
-                              ? AppTheme.primary
-                              : AppTheme.onSurface,
-                          fontWeight: summary.setsA > summary.setsB
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          fontSize: 16,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    _formatDate(record.startedAt),
+                    style: const TextStyle(color: Colors.white38, fontSize: 12),
                   ),
-                ),
-
-                // Placar
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${summary.setsA}',
-                        style: TextStyle(
-                          color: summary.setsA > summary.setsB
-                              ? AppTheme.primary
-                              : AppTheme.onSurface,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 28,
-                        ),
-                      ),
-                      const Text(
-                        ' x ',
-                        style: TextStyle(color: Colors.white38, fontSize: 20),
-                      ),
-                      Text(
-                        '${summary.setsB}',
-                        style: TextStyle(
-                          color: summary.setsB > summary.setsA
-                              ? AppTheme.primary
-                              : AppTheme.onSurface,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 28,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatDuration(),
+                    style: const TextStyle(color: Colors.white38, fontSize: 12),
                   ),
-                ),
+                ],
+              ),
+              const SizedBox(height: 10),
 
-                // Jogador B
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        record.playerBName,
-                        style: TextStyle(
-                          color: summary.setsB > summary.setsA
-                              ? AppTheme.primary
-                              : AppTheme.onSurface,
-                          fontWeight: summary.setsB > summary.setsA
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          fontSize: 16,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+              // Placar: Jogador A  X  Jogador B
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      record.playerAName,
+                      textAlign: TextAlign.left,
+                      style: TextStyle(
+                        color: aWon ? neonColor : AppTheme.onSurface,
+                        fontWeight: aWon ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 15,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        Text('${summary.setsA}',
+                            style: TextStyle(
+                                color: aWon ? neonColor : Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 28)),
+                        const Text(' x ',
+                            style:
+                                TextStyle(color: Colors.white38, fontSize: 18)),
+                        Text('${summary.setsB}',
+                            style: TextStyle(
+                                color: !aWon ? neonColor : Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 28)),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      record.playerBName,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        color: !aWon ? neonColor : AppTheme.onSurface,
+                        fontWeight: !aWon ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 15,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
 
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
 
-            // Rodapé: duração
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.timer, color: Colors.white24, size: 14),
-                const SizedBox(width: 4),
-                Text(
-                  _formatDuration(),
-                  style: const TextStyle(color: Colors.white24, fontSize: 12),
-                ),
-              ],
-            ),
-          ],
+              // Botões de ação
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.share,
+                        color: Colors.white38, size: 20),
+                    tooltip: 'Compartilhar',
+                    onPressed: () {
+                      final winner = summary.setsA > summary.setsB
+                          ? record.playerAName
+                          : record.playerBName;
+                      Share.share(
+                          '${record.playerAName} ${summary.setsA} x ${summary.setsB} ${record.playerBName}\nVencedor: $winner\n${_formatDate(record.startedAt)}');
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline,
+                        color: AppTheme.error, size: 20),
+                    tooltip: 'Apagar',
+                    onPressed: onDelete,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

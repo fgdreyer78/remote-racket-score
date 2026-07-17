@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_theme.dart';
 import '../../models/game_config.dart';
@@ -327,14 +328,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     preset.name,
                     style: const TextStyle(color: AppTheme.onSurface),
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: AppTheme.error),
-                    onPressed: () async {
-                      await ref
-                          .read(gamePresetsProvider.notifier)
-                          .deletePreset(index);
-                      if (context.mounted) Navigator.of(context).pop();
-                    },
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.share,
+                            color: AppTheme.primary, size: 20),
+                        onPressed: () {
+                          final c = preset.config;
+                          Share.share(
+                            'Preset: ${preset.name}\n'
+                            'Games: ${c.gamesToWinSet} | Sets: melhor de ${c.maxSets}\n'
+                            'Tiebreak: ${c.tiebreakAt} games, ${c.tiebreakPoints} pontos\n'
+                            'Vantagem: ${c.withAdvantage ? "Sim" : "Não"}\n'
+                            'Saque: ${c.serveClockSeconds}s | Intervalo ímpar: ${c.breakBetweenOddGamesSeconds}s | Par: ${c.breakBetweenEvenGamesSeconds}s',
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete,
+                            color: AppTheme.error, size: 20),
+                        onPressed: () async {
+                          await ref
+                              .read(gamePresetsProvider.notifier)
+                              .deletePreset(index);
+                          if (context.mounted) Navigator.of(context).pop();
+                        },
+                      ),
+                    ],
                   ),
                   onTap: () => Navigator.of(context).pop(index),
                 );
