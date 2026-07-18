@@ -21,85 +21,44 @@ class GameConfig {
     this.breakBetweenEvenGamesSeconds = 0,
     this.breakBetweenSetsSeconds = 0,
     this.timeWarningSound = true,
-    // Flash visual ao registrar ponto
     this.pointFlashEnabled = false,
     this.pointFlashDurationMs = 600,
     this.pointFlashFrequencyHz = 4,
-    // Layout do placar: 0 = padrão, 1 = landscape dividido
     this.layoutMode = 0,
-    // Auto-save no histórico
+    this.lockSettingsDuringMatch = false,
     this.autoSaveToHistory = true,
     this.autoSaveDelaySeconds = 10,
   });
 
   final String sportName;
-
-  /// Nomes dos jogadores (não salvos em presets, apenas na sessão atual).
   final String playerAName;
   final String playerBName;
-
-  /// Games para ganhar o set (ex.: 6 no tênis).
   final int gamesToWinSet;
-
-  /// Diferença mínima de games (ex.: 2 = 6-4, 7-5).
   final int minGameDifference;
-
-  /// Melhor de N sets (1, 3 ou 5).
   final int maxSets;
-
-  /// Empatar em X games ativa o tiebreak (ex.: 6).
   final int tiebreakAt;
-
-  /// Pontos para ganhar o tiebreak (7 ou 10).
   final int tiebreakPoints;
   final int tiebreakDifference;
-
-  /// Set decisivo: tiebreak até quantos pontos (ex.: 7 ou 10).
   final int finalSetTiebreakPoints;
   final bool useFinalSetTiebreak;
-
-  /// true = jogo com vantagem (40-40 → vantagem → game).
   final bool withAdvantage;
-
-  /// true = mini partida até [miniMatchGamesCount] games (sem sets).
   final bool miniMatchGames;
   final int miniMatchGamesCount;
-
-  /// Idioma da locução TTS (por exemplo: 'pt-BR' ou 'en-US').
   final String ttsLanguage;
-
-  /// Tempo de saque após o ponto (segundos). 0 = desativado.
   final int serveClockSeconds;
-
-  /// Intervalo entre games ímpares (soma de games do set é ímpar). 0 = desativado.
   final int breakBetweenOddGamesSeconds;
-
-  /// Intervalo entre games pares (soma de games do set é par). 0 = desativado.
   final int breakBetweenEvenGamesSeconds;
-
-  /// Tempo entre sets (segundos). 0 = desativado.
   final int breakBetweenSetsSeconds;
-
-  /// Ao fim do tempo, aviso sonoro "Tempo" (apenas em games ímpares e sets).
   final bool timeWarningSound;
-
-  /// Ativa o flash visual ao registrar um ponto.
   final bool pointFlashEnabled;
-
-  /// Duração total do flash em milissegundos.
   final int pointFlashDurationMs;
-
-  /// Frequência de alternância do flash (vezes por segundo).
   final int pointFlashFrequencyHz;
-
-  /// Salvar automaticamente no histórico ao fim da partida.
-  final bool autoSaveToHistory;
-
-  /// Segundos de espera após último ponto antes de salvar (para desfazer). 0 = salvar imediatamente.
-  final int autoSaveDelaySeconds;
-
-  /// Modo de layout: 0 = padrão, 1 = landscape dividido (lado a lado).
   final int layoutMode;
+
+  /// Travar configurações durante a partida.
+  final bool lockSettingsDuringMatch;
+  final bool autoSaveToHistory;
+  final int autoSaveDelaySeconds;
 
   GameConfig copyWith({
     String? sportName,
@@ -125,9 +84,10 @@ class GameConfig {
     bool? pointFlashEnabled,
     int? pointFlashDurationMs,
     int? pointFlashFrequencyHz,
+    int? layoutMode,
+    bool? lockSettingsDuringMatch,
     bool? autoSaveToHistory,
     int? autoSaveDelaySeconds,
-    int? layoutMode,
   }) {
     return GameConfig(
       sportName: sportName ?? this.sportName,
@@ -158,9 +118,11 @@ class GameConfig {
       pointFlashDurationMs: pointFlashDurationMs ?? this.pointFlashDurationMs,
       pointFlashFrequencyHz:
           pointFlashFrequencyHz ?? this.pointFlashFrequencyHz,
+      layoutMode: layoutMode ?? this.layoutMode,
+      lockSettingsDuringMatch:
+          lockSettingsDuringMatch ?? this.lockSettingsDuringMatch,
       autoSaveToHistory: autoSaveToHistory ?? this.autoSaveToHistory,
       autoSaveDelaySeconds: autoSaveDelaySeconds ?? this.autoSaveDelaySeconds,
-      layoutMode: layoutMode ?? this.layoutMode,
     );
   }
 
@@ -186,9 +148,10 @@ class GameConfig {
         'pointFlashEnabled': pointFlashEnabled,
         'pointFlashDurationMs': pointFlashDurationMs,
         'pointFlashFrequencyHz': pointFlashFrequencyHz,
+        'layoutMode': layoutMode,
+        'lockSettingsDuringMatch': lockSettingsDuringMatch,
         'autoSaveToHistory': autoSaveToHistory,
         'autoSaveDelaySeconds': autoSaveDelaySeconds,
-        'layoutMode': layoutMode,
       };
 
   factory GameConfig.fromJson(Map<String, dynamic> json) {
@@ -220,9 +183,11 @@ class GameConfig {
       pointFlashEnabled: json['pointFlashEnabled'] as bool? ?? false,
       pointFlashDurationMs: json['pointFlashDurationMs'] as int? ?? 600,
       pointFlashFrequencyHz: json['pointFlashFrequencyHz'] as int? ?? 4,
+      layoutMode: json['layoutMode'] as int? ?? 0,
+      lockSettingsDuringMatch:
+          json['lockSettingsDuringMatch'] as bool? ?? false,
       autoSaveToHistory: json['autoSaveToHistory'] as bool? ?? true,
       autoSaveDelaySeconds: json['autoSaveDelaySeconds'] as int? ?? 10,
-      layoutMode: json['layoutMode'] as int? ?? 0,
     );
   }
 }

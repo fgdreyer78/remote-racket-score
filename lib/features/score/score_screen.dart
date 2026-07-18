@@ -70,10 +70,13 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     super.dispose();
   }
 
+  VoidCallback? _onClockComplete;
+
   void _startClock(int seconds, String label, GameConfig config,
-      {bool playWarningSound = false}) {
+      {bool playWarningSound = false, VoidCallback? onComplete}) {
     _clockTimer?.cancel();
     _lastClockPlayWarning = playWarningSound;
+    _onClockComplete = onComplete;
     setState(() {
       _clockRemaining = seconds;
       _clockLabel = label;
@@ -87,6 +90,14 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         _clockTimer = null;
         if (config.timeWarningSound && _lastClockPlayWarning) {
           ref.read(ttsServiceProvider).speakTimeWarning(config);
+        }
+        // Encadear próximo timer se houver callback
+        if (_onClockComplete != null) {
+          final callback = _onClockComplete;
+          _onClockComplete = null;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && callback != null) callback();
+          });
         }
       }
       if (mounted) {
@@ -171,15 +182,26 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       final shouldRestOdd = gameEnded && isOddGame && !isFirstGame;
       final shouldRestEven = gameEnded && !isOddGame && !isFirstGame;
 
+      // Função auxiliar para iniciar timer de saque após intervalo
+      VoidCallback? serveClockAfterBreak;
+      if (config.serveClockSeconds > 0) {
+        serveClockAfterBreak = () {
+          if (mounted) {
+            _startClock(config.serveClockSeconds, 'Saque', config,
+                playWarningSound: false);
+          }
+        };
+      }
+
       if (setEnded && config.breakBetweenSetsSeconds > 0) {
         _startClock(config.breakBetweenSetsSeconds, 'Intervalo', config,
-            playWarningSound: true);
+            playWarningSound: true, onComplete: serveClockAfterBreak);
       } else if (shouldRestOdd && config.breakBetweenOddGamesSeconds > 0) {
         _startClock(config.breakBetweenOddGamesSeconds, 'Intervalo', config,
-            playWarningSound: true);
+            playWarningSound: true, onComplete: serveClockAfterBreak);
       } else if (shouldRestEven && config.breakBetweenEvenGamesSeconds > 0) {
         _startClock(config.breakBetweenEvenGamesSeconds, 'Intervalo', config,
-            playWarningSound: false);
+            playWarningSound: false, onComplete: serveClockAfterBreak);
       } else if (pointAdded && config.serveClockSeconds > 0) {
         _startClock(config.serveClockSeconds, 'Saque', config,
             playWarningSound: false);
@@ -266,10 +288,30 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                                     tooltip: 'Nova partida',
                                     onPressed: () => _confirmReset(context)),
                                 IconButton(
-                                    icon: const Icon(Icons.sports_tennis,
-                                        color: neonColor),
-                                    tooltip: 'Configurações',
-                                    onPressed: () => _openSettings(context)),
+                                    icon: Icon(Icons.sports_tennis,
+                                        color: config.lockSettingsDuringMatch &&
+                                                score.setsA == 0 &&
+                                                score.setsB == 0 &&
+                                                score.gamesA == 0 &&
+                                                score.gamesB == 0
+                                            ? neonColor
+                                            : config.lockSettingsDuringMatch
+                                                ? Colors.white24
+                                                : neonColor),
+                                    tooltip: config.lockSettingsDuringMatch &&
+                                            (score.setsA > 0 ||
+                                                score.setsB > 0 ||
+                                                score.gamesA > 0 ||
+                                                score.gamesB > 0)
+                                        ? 'Bloqueado durante a partida'
+                                        : 'Configurações',
+                                    onPressed: config.lockSettingsDuringMatch &&
+                                            (score.setsA > 0 ||
+                                                score.setsB > 0 ||
+                                                score.gamesA > 0 ||
+                                                score.gamesB > 0)
+                                        ? null
+                                        : () => _openSettings(context)),
                                 IconButton(
                                     icon: const Icon(
                                         Icons.settings_input_antenna,
@@ -316,8 +358,41 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     ref.read(keyEventServiceProvider).setGameMode(true);
   }
 
-  void _goHome(BuildContext context) {
+  Future<void> _goHome(BuildContext context) async {
+    final score = ref.read(scoreStateProvider);
+    final hasStarted = score.setsA > 0 ||
+        score.setsB > 0 ||
+        score.gamesA > 0 ||
+        score.gamesB > 0;
+
+    if (hasStarted) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppTheme.surfaceVariant,
+          title: const Text('Sair da partida?',
+              style: TextStyle(
+                  color: AppTheme.primary, fontWeight: FontWeight.bold)),
+          content: const Text(
+              'A partida em andamento será perdida. Deseja realmente sair?',
+              style: TextStyle(color: AppTheme.onSurface)),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Ficar',
+                    style: TextStyle(color: AppTheme.onSurface))),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Sair',
+                    style: TextStyle(color: AppTheme.error))),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
     ref.read(keyEventServiceProvider).setGameMode(false);
+    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeScreen()),
       (route) => false,

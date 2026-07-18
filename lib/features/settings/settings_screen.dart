@@ -40,6 +40,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late int _autoSaveDelaySeconds;
   // Layout
   late int _layoutMode;
+  // Lock settings during match
+  late bool _lockSettingsDuringMatch;
 
   @override
   void initState() {
@@ -66,6 +68,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _autoSaveToHistory = true;
     _autoSaveDelaySeconds = 10;
     _layoutMode = 0;
+    _lockSettingsDuringMatch = false;
   }
 
   bool _formInitialized = false;
@@ -97,6 +100,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _autoSaveToHistory = config.autoSaveToHistory;
       _autoSaveDelaySeconds = config.autoSaveDelaySeconds;
       _layoutMode = config.layoutMode;
+      _lockSettingsDuringMatch = config.lockSettingsDuringMatch;
     });
   }
 
@@ -316,6 +320,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               },
             ),
 
+            const SizedBox(height: 24),
+
+            // --- SEGURANÇA ---
+            SwitchListTile(
+              title: const Text('Travar configurações durante a partida',
+                  style: TextStyle(color: AppTheme.onSurface)),
+              subtitle: const Text(
+                  'Impedir alterações nas configurações enquanto a partida está em andamento',
+                  style: TextStyle(color: Colors.white54, fontSize: 12)),
+              value: _lockSettingsDuringMatch,
+              onChanged: (v) => setState(() => _lockSettingsDuringMatch = v),
+              activeColor: AppTheme.primary,
+            ),
+
             const SizedBox(height: 48),
 
             FilledButton(
@@ -426,6 +444,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _autoSaveToHistory = config.autoSaveToHistory;
       _autoSaveDelaySeconds = config.autoSaveDelaySeconds;
       _layoutMode = config.layoutMode;
+      _lockSettingsDuringMatch = config.lockSettingsDuringMatch;
       _formKey++;
     });
   }
@@ -489,6 +508,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       autoSaveToHistory: _autoSaveToHistory,
       autoSaveDelaySeconds: _autoSaveDelaySeconds,
       layoutMode: _layoutMode,
+      lockSettingsDuringMatch: _lockSettingsDuringMatch,
     );
     ref.read(gameConfigProvider.notifier).updateConfig(config);
     ref.read(gamePresetsProvider.notifier).savePreset(name, config);
