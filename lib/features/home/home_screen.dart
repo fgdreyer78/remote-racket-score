@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 import '../../providers/key_event_provider.dart';
 import '../button_mapping/button_mapping_screen.dart';
 import '../history/history_screen.dart';
+import '../../providers/locale_provider.dart';
 import '../settings/settings_screen.dart';
 import 'new_game_screen.dart';
 
@@ -35,10 +37,10 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   Icon(Icons.sports_tennis, color: neonColor, size: 72),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Remote Racket Score',
+                  Text(
+                    AppLocalizations.of(context)!.appTitle,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: neonColor,
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -50,10 +52,9 @@ class HomeScreen extends ConsumerWidget {
 
               const SizedBox(height: 56),
 
-              // Botão NOVO JOGO
               _MenuButton(
                 icon: Icons.play_circle_fill,
-                label: 'NOVO JOGO',
+                label: AppLocalizations.of(context)!.newGame,
                 color: neonColor,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const NewGameScreen()),
@@ -62,10 +63,9 @@ class HomeScreen extends ConsumerWidget {
 
               const SizedBox(height: 16),
 
-              // Botão PRESETS
               _MenuButton(
                 icon: Icons.tune,
-                label: 'PRESETS',
+                label: AppLocalizations.of(context)!.presets,
                 color: Colors.white,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const SettingsScreen()),
@@ -74,10 +74,9 @@ class HomeScreen extends ConsumerWidget {
 
               const SizedBox(height: 16),
 
-              // Botão HISTÓRICO
               _MenuButton(
                 icon: Icons.history,
-                label: 'HISTÓRICO',
+                label: AppLocalizations.of(context)!.history,
                 color: Colors.white,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const HistoryScreen()),
@@ -86,10 +85,9 @@ class HomeScreen extends ConsumerWidget {
 
               const SizedBox(height: 16),
 
-              // Botão CONFIGURAÇÕES
               _MenuButton(
                 icon: Icons.settings,
-                label: 'CONFIGURAÇÕES',
+                label: AppLocalizations.of(context)!.settings,
                 color: Colors.white,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const _ConfigScreen()),
@@ -149,7 +147,8 @@ class _MenuButton extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Icon(Icons.chevron_right, color: color.withOpacity(0.5), size: 24),
+              Icon(Icons.chevron_right,
+                  color: color.withOpacity(0.5), size: 24),
             ],
           ),
         ),
@@ -158,19 +157,22 @@ class _MenuButton extends StatelessWidget {
   }
 }
 
-/// Tela de Configurações (stub — será expandida na Fase 2)
+/// Tela de Configurações Gerais
 class _ConfigScreen extends ConsumerWidget {
   const _ConfigScreen();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     const neonColor = Color(0xFFCCFF00);
+    final currentLocale = ref.watch(localeProvider);
+    final loc = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: AppTheme.surface,
       appBar: AppBar(
-        title: const Text(
-          'Configurações',
-          style: TextStyle(color: neonColor, fontWeight: FontWeight.bold),
+        title: Text(
+          loc.settings,
+          style: const TextStyle(color: neonColor, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: neonColor),
@@ -181,8 +183,8 @@ class _ConfigScreen extends ConsumerWidget {
         children: [
           _ConfigTile(
             icon: Icons.settings_input_antenna,
-            title: 'Dispositivos de Pontuação',
-            subtitle: 'Botões de volume, mídia e teclado',
+            title: loc.sportSettings,
+            subtitle: loc.sportSettingsHint,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ButtonMappingScreen()),
             ),
@@ -190,16 +192,40 @@ class _ConfigScreen extends ConsumerWidget {
           const Divider(color: Colors.white12),
           _ConfigTile(
             icon: Icons.dashboard_customize,
-            title: 'Layout do Placar',
-            subtitle: 'Em breve',
+            title: loc.scoreLayout,
+            subtitle: loc.scoreLayoutHint,
             onTap: null,
           ),
           const Divider(color: Colors.white12),
-          _ConfigTile(
-            icon: Icons.language,
-            title: 'Idioma',
-            subtitle: 'Em breve',
-            onTap: null,
+          ListTile(
+            leading: const Icon(Icons.language, color: neonColor),
+            title: Text(
+              loc.speechLanguage,
+              style: const TextStyle(
+                  color: AppTheme.onSurface, fontWeight: FontWeight.bold),
+            ),
+            trailing: DropdownButton<Locale>(
+              value: currentLocale,
+              dropdownColor: AppTheme.surfaceVariant,
+              underline: const SizedBox.shrink(),
+              items: const [
+                DropdownMenuItem(
+                  value: Locale('pt', 'BR'),
+                  child: Text('Português',
+                      style: TextStyle(color: AppTheme.onSurface)),
+                ),
+                DropdownMenuItem(
+                  value: Locale('en', 'US'),
+                  child: Text('English',
+                      style: TextStyle(color: AppTheme.onSurface)),
+                ),
+              ],
+              onChanged: (locale) {
+                if (locale != null) {
+                  ref.read(localeProvider.notifier).setLocale(locale);
+                }
+              },
+            ),
           ),
         ],
       ),
