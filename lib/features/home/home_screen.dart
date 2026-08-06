@@ -25,85 +25,110 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppTheme.surface,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 32),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isLandscape =
+                MediaQuery.of(context).orientation == Orientation.landscape;
 
-              // Logo / Título
-              Column(
-                children: [
-                  Icon(Icons.sports_tennis, color: neonColor, size: 72),
-                  const SizedBox(height: 16),
-                  Text(
-                    AppLocalizations.of(context)!.appTitle,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: neonColor,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
+            final content = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(height: isLandscape ? 16 : 32),
+
+                // Logo / Título
+                Column(
+                  children: [
+                    Icon(Icons.sports_tennis,
+                        color: neonColor, size: isLandscape ? 48 : 72),
+                    const SizedBox(height: 12),
+                    Text(
+                      AppLocalizations.of(context)!.appTitle,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: neonColor,
+                        fontSize: isLandscape ? 22 : 28,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
                     ),
+                  ],
+                ),
+
+                SizedBox(height: isLandscape ? 24 : 48),
+
+                _MenuButton(
+                  icon: Icons.play_circle_fill,
+                  label: AppLocalizations.of(context)!.newGame,
+                  color: neonColor,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const NewGameScreen()),
                   ),
-                ],
-              ),
-
-              const SizedBox(height: 56),
-
-              _MenuButton(
-                icon: Icons.play_circle_fill,
-                label: AppLocalizations.of(context)!.newGame,
-                color: neonColor,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const NewGameScreen()),
                 ),
-              ),
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
-              _MenuButton(
-                icon: Icons.tune,
-                label: AppLocalizations.of(context)!.presets,
-                color: Colors.white,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                _MenuButton(
+                  icon: Icons.tune,
+                  label: AppLocalizations.of(context)!.presets,
+                  color: Colors.white,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
-              _MenuButton(
-                icon: Icons.history,
-                label: AppLocalizations.of(context)!.history,
-                color: Colors.white,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                _MenuButton(
+                  icon: Icons.history,
+                  label: AppLocalizations.of(context)!.history,
+                  color: Colors.white,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
-              _MenuButton(
-                icon: Icons.settings,
-                label: AppLocalizations.of(context)!.settings,
-                color: Colors.white,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const _ConfigScreen()),
+                _MenuButton(
+                  icon: Icons.settings,
+                  label: AppLocalizations.of(context)!.settings,
+                  color: Colors.white,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const _ConfigScreen()),
+                  ),
                 ),
-              ),
 
-              const Spacer(),
+                const SizedBox(height: 16),
 
-              // Versão
-              const Text(
-                'v1.0',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white24, fontSize: 12),
-              ),
-            ],
-          ),
+                // Versão
+                const Text(
+                  'v1.0',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white24, fontSize: 12),
+                ),
+              ],
+            );
+
+            // Em landscape, usa SingleChildScrollView para permitir scroll
+            if (isLandscape) {
+              return SingleChildScrollView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
+                  ),
+                  child: IntrinsicHeight(child: content),
+                ),
+              );
+            }
+
+            // Em portrait, mantém o layout original
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              child: content,
+            );
+          },
         ),
       ),
     );

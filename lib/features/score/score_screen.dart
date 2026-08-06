@@ -257,8 +257,8 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               config.sportName.isNotEmpty
@@ -269,8 +269,9 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                                   .titleLarge
                                   ?.copyWith(fontWeight: FontWeight.bold),
                             ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
+                            const SizedBox(height: 4),
+                            Wrap(
+                              alignment: WrapAlignment.center,
                               children: [
                                 IconButton(
                                     icon: const Icon(Icons.history,
@@ -325,7 +326,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                                     tooltip: 'Menu principal',
                                     onPressed: () => _goHome(context)),
                               ],
-                            )
+                            ),
                           ],
                         ),
                       ),
