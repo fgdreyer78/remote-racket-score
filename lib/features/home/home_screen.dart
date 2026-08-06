@@ -135,7 +135,7 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _MenuButton extends StatelessWidget {
+class _MenuButton extends StatefulWidget {
   const _MenuButton({
     required this.icon,
     required this.label,
@@ -149,33 +149,49 @@ class _MenuButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_MenuButton> createState() => _MenuButtonState();
+}
+
+class _MenuButtonState extends State<_MenuButton> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppTheme.surfaceVariant,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
-          child: Row(
-            children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(width: 16),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
+    final bgColor = _isPressed ? widget.color : AppTheme.surfaceVariant;
+    final fgColor = _isPressed ? AppTheme.surfaceVariant : widget.color;
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeInOut,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+        child: Row(
+          children: [
+            Icon(widget.icon, color: fgColor, size: 28),
+            const SizedBox(width: 16),
+            Text(
+              widget.label,
+              style: TextStyle(
+                color: fgColor,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
               ),
-              const Spacer(),
-              Icon(Icons.chevron_right,
-                  color: color.withOpacity(0.5), size: 24),
-            ],
-          ),
+            ),
+            const Spacer(),
+            Icon(Icons.chevron_right,
+                color: fgColor.withValues(alpha: 0.5), size: 24),
+          ],
         ),
       ),
     );
