@@ -375,7 +375,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
               style: TextStyle(
                   color: AppTheme.primary, fontWeight: FontWeight.bold)),
           content: const Text(
-              'A partida em andamento será perdida. Deseja realmente sair?',
+              'Você poderá continuar esta partida depois pelo menu principal.',
               style: TextStyle(color: AppTheme.onSurface)),
           actions: [
             TextButton(
@@ -385,7 +385,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
             TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: const Text('Sair',
-                    style: TextStyle(color: AppTheme.error))),
+                    style: TextStyle(color: AppTheme.primary))),
           ],
         ),
       );

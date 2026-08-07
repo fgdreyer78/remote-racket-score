@@ -4,14 +4,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/key_event_provider.dart';
+import '../../providers/score_provider.dart';
 import '../button_mapping/button_mapping_screen.dart';
 import '../history/history_screen.dart';
 import '../../providers/locale_provider.dart';
+import '../score/score_screen.dart';
 import '../settings/settings_screen.dart';
 import 'new_game_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
+
+  /// Verifica se há uma partida em andamento (pelo menos 1 ponto, game ou set registrado)
+  static bool _hasActiveMatch(WidgetRef ref) {
+    final score = ref.read(scoreStateProvider);
+    if (score.matchOver) return false;
+    return score.setsA > 0 ||
+        score.setsB > 0 ||
+        score.gamesA > 0 ||
+        score.gamesB > 0 ||
+        score.pointsA > 0 ||
+        score.pointsB > 0 ||
+        score.tiebreakPointsA > 0 ||
+        score.tiebreakPointsB > 0;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -64,6 +80,19 @@ class HomeScreen extends ConsumerWidget {
                     MaterialPageRoute(builder: (_) => const NewGameScreen()),
                   ),
                 ),
+
+                // Botão "Continuar Partida" — só aparece se há jogo em andamento
+                if (_hasActiveMatch(ref)) ...[
+                  const SizedBox(height: 12),
+                  _MenuButton(
+                    icon: Icons.play_circle,
+                    label: 'Continuar Partida em Andamento',
+                    color: const Color(0xFF80FF80),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ScoreScreen()),
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 12),
 
