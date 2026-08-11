@@ -40,6 +40,15 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   // Controle de aviso sonoro: só toca em games ímpares e sets
   bool _lastClockPlayWarning = false;
 
+  // Flags para manter placar visível durante flash ao fechar game/set
+  bool _gameJustEnded = false;
+  bool _setJustEnded = false;
+  // Pontos do momento em que o game/set foi fechado (para exibir durante flash)
+  int _preGameEndPointsA = 0;
+  int _preGameEndPointsB = 0;
+  int _preGameEndTbPointsA = 0;
+  int _preGameEndTbPointsB = 0;
+
   @override
   void initState() {
     super.initState();
@@ -131,6 +140,8 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         setState(() {
           _flashingIsA = null;
           _flashState = false;
+          _gameJustEnded = false;
+          _setJustEnded = false;
         });
         return;
       }
@@ -169,10 +180,22 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
           next.tiebreakPointsB != prev.tiebreakPointsB;
 
       if (pointAdded) {
-        final scorerIsA = (next.pointsA != prev.pointsA) ||
-            (next.tiebreakPointsA != prev.tiebreakPointsA) ||
-            (next.gamesA != prev.gamesA && next.pointsA == 0) ||
-            (next.setsA != prev.setsA);
+        // Usa diretamente quem fez o ponto — sem detecção por estado
+        final scorerIsA = ref.read(scoreStateProvider.notifier).lastScorerIsA;
+        final gameEnded =
+            (next.gamesA + next.gamesB) > (prev.gamesA + prev.gamesB) &&
+                !next.isTiebreak;
+        final setEnded = (next.setsA + next.setsB) > (prev.setsA + prev.setsB);
+        setState(() {
+          _gameJustEnded = gameEnded;
+          _setJustEnded = setEnded;
+          if (gameEnded || setEnded) {
+            _preGameEndPointsA = prev.pointsA;
+            _preGameEndPointsB = prev.pointsB;
+            _preGameEndTbPointsA = prev.tiebreakPointsA;
+            _preGameEndTbPointsB = prev.tiebreakPointsB;
+          }
+        });
         _startFlash(scorerIsA, config);
       }
 
@@ -233,6 +256,12 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                       clockRemaining: _clockRemaining,
                       flashingIsA: _flashingIsA,
                       flashState: _flashState,
+                      gameJustEnded: _gameJustEnded,
+                      setJustEnded: _setJustEnded,
+                      preGameEndPointsA: _preGameEndPointsA,
+                      preGameEndPointsB: _preGameEndPointsB,
+                      preGameEndTbPointsA: _preGameEndTbPointsA,
+                      preGameEndTbPointsB: _preGameEndTbPointsB,
                       onPointA: () {
                         if (!score.matchOver)
                           ref.read(scoreStateProvider.notifier).addPointA();
@@ -493,6 +522,12 @@ class _ScoreContent extends StatelessWidget {
     required this.clockRemaining,
     required this.flashingIsA,
     required this.flashState,
+    required this.gameJustEnded,
+    required this.setJustEnded,
+    required this.preGameEndPointsA,
+    required this.preGameEndPointsB,
+    required this.preGameEndTbPointsA,
+    required this.preGameEndTbPointsB,
     required this.onPointA,
     required this.onPointB,
     required this.onUndo,
@@ -504,6 +539,12 @@ class _ScoreContent extends StatelessWidget {
   final int? clockRemaining;
   final bool? flashingIsA;
   final bool flashState;
+  final bool gameJustEnded;
+  final bool setJustEnded;
+  final int preGameEndPointsA;
+  final int preGameEndPointsB;
+  final int preGameEndTbPointsA;
+  final int preGameEndTbPointsB;
   final VoidCallback onPointA;
   final VoidCallback onPointB;
   final VoidCallback onUndo;
@@ -590,7 +631,42 @@ class _ScoreContent extends StatelessWidget {
             score.gamesB > 0 ||
             score.setsA > 0 ||
             score.setsB > 0);
-    final bool hasPoints = !score.matchOver && (pA != '0' || pB != '0');
+    // Quando um game ou set acaba de ser fechado, os pontos zeram mas queremos
+    // manter o placar visível durante o flash para mostrar quem fez o ponto.
+    final showScoreDuringFlash =
+        flashingIsA != null && (gameJustEnded || setJustEnded);
+
+    // Durante flash de game/set, usa os pontos que estavam ANTES do reset
+    if (showScoreDuringFlash) {
+      if (score.isTiebreak) {
+        pA = '$preGameEndTbPointsA';
+        pB = '$preGameEndTbPointsB';
+      } else {
+        if (preGameEndPointsA >= 3 && preGameEndPointsB >= 3) {
+          if (preGameEndPointsA == preGameEndPointsB) {
+            pA = '40';
+            pB = '40';
+          } else if (preGameEndPointsA > preGameEndPointsB) {
+            pA = 'AD';
+            pB = '40';
+          } else {
+            pA = '40';
+            pB = 'AD';
+          }
+        } else {
+          const pts = ['0', '15', '30', '40'];
+          pA = preGameEndPointsA < pts.length
+              ? pts[preGameEndPointsA]
+              : '$preGameEndPointsA';
+          pB = preGameEndPointsB < pts.length
+              ? pts[preGameEndPointsB]
+              : '$preGameEndPointsB';
+        }
+      }
+    }
+
+    final bool hasPoints =
+        !score.matchOver && (pA != '0' || pB != '0' || showScoreDuringFlash);
     final bool hasSets = score.setsA > 0 || score.setsB > 0;
 
     const neonColor = Color(0xFFCCFF00);

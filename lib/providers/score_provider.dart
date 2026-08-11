@@ -17,11 +17,16 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
   ScoreNotifier(this._ref)
       : _matchStart = DateTime.now(),
         _events = <PointEvent>[],
+        _lastScorerIsA = false,
         super(const ScoreState());
 
   final Ref _ref;
   DateTime _matchStart;
   final List<PointEvent> _events;
+
+  /// Último jogador que fez ponto — usado para o flash visual
+  bool _lastScorerIsA;
+  bool get lastScorerIsA => _lastScorerIsA;
 
   GameConfig get _config =>
       _ref.read(gameConfigProvider).valueOrNull ?? const GameConfig();
@@ -51,6 +56,7 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
       ),
     );
 
+    _lastScorerIsA = forTeamA;
     state = ScoringEngine(config).addPoint(prev, forTeamA);
     _ref.read(ttsServiceProvider).announceTransition(prev, state, config);
 

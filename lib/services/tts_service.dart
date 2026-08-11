@@ -111,10 +111,14 @@ class TtsService {
       }
       return;
     }
-    final serverPoints = state.serverIsA ? state.pointsA : state.pointsB;
-    final receiverPoints = state.serverIsA ? state.pointsB : state.pointsA;
-    final isEqual = serverPoints == receiverPoints && serverPoints <= 3;
+    final pa = state.pointsA;
+    final pb = state.pointsB;
+
+    // 40 iguais: ambos com 3+ pontos (40 ou mais) e iguais
+    final isEqual = pa >= 3 && pb >= 3 && pa == pb;
     final equalWord = config.ttsLanguage == 'pt-BR' ? 'iguais' : 'all';
+    final serverPoints = state.serverIsA ? pa : pb;
+    final receiverPoints = state.serverIsA ? pb : pa;
 
     if (config.ttsLanguage == 'en-US') {
       final s = _pointWordEn(serverPoints);
@@ -171,13 +175,38 @@ class TtsService {
     final newGa = newState.gamesA;
     final newGb = newState.gamesB;
     final aWonGame = newGa > previousState.gamesA;
-    final name = aWonGame ? config.playerAName : config.playerBName;
-    final winnerGames = aWonGame ? newGa : newGb;
-    final otherGames = aWonGame ? newGb : newGa;
+    final gameWinnerName = aWonGame ? config.playerAName : config.playerBName;
+    final setNumber = newState.currentSet;
+    final ordinal = _ordinalSetName(setNumber, config.ttsLanguage);
+
+    // 1. SEMPRE diz "Game [JOGADOR]"
     if (config.ttsLanguage == 'pt-BR') {
-      await _speak('$name lidera por $winnerGames games a $otherGames', config);
+      await _speak('Game $gameWinnerName', config);
     } else {
-      await _speak('$name leads $winnerGames games to $otherGames', config);
+      await _speak('Game $gameWinnerName', config);
+    }
+
+    // 2. Placar do set
+    if (newGa == newGb) {
+      // Empate
+      if (config.ttsLanguage == 'pt-BR') {
+        await _speak('$ordinal set empatado em $newGa a $newGb', config);
+      } else {
+        await _speak('$ordinal set tied at $newGa all', config);
+      }
+    } else {
+      // Quem lidera (baseado no placar REAL de games)
+      final leaderName =
+          newGa > newGb ? config.playerAName : config.playerBName;
+      final leaderGames = newGa > newGb ? newGa : newGb;
+      final otherGames = newGa > newGb ? newGb : newGa;
+      if (config.ttsLanguage == 'pt-BR') {
+        await _speak(
+            '$leaderName lidera por $leaderGames games a $otherGames', config);
+      } else {
+        await _speak(
+            '$leaderName leads $leaderGames games to $otherGames', config);
+      }
     }
   }
 
@@ -318,15 +347,14 @@ class TtsService {
       await speakGameAndSetScore(newState, previousState, config);
       return;
     }
-    if (config.withAdvantage) {
-      if (newState.pointsA == 4 && newState.pointsB == 3) {
-        await speakAdvantage(config.playerAName, config);
-        return;
-      }
-      if (newState.pointsB == 4 && newState.pointsA == 3) {
-        await speakAdvantage(config.playerBName, config);
-        return;
-      }
+    // Vantagem: 4x3 ou 3x4 — SEMPRE anuncia, independentemente de config
+    if (newState.pointsA == 4 && newState.pointsB == 3) {
+      await speakAdvantage(config.playerAName, config);
+      return;
+    }
+    if (newState.pointsB == 4 && newState.pointsA == 3) {
+      await speakAdvantage(config.playerBName, config);
+      return;
     }
     await speakCurrentScore(newState, config);
   }
