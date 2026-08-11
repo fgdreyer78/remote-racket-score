@@ -11,6 +11,7 @@ import '../../models/score_state.dart';
 import '../../providers/button_mapping_provider.dart';
 import '../../providers/game_config_provider.dart';
 import '../../providers/key_event_provider.dart';
+import '../../providers/app_config_provider.dart';
 import '../../providers/score_provider.dart';
 import '../../providers/tts_config_provider.dart';
 import '../../providers/tts_provider.dart';
@@ -154,6 +155,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   @override
   Widget build(BuildContext context) {
     ref.watch(keyEventServiceProvider);
+    final loc = AppConfig.of(context);
 
     ref.listen<AsyncValue<ButtonMapping>>(buttonMappingProvider, (prev, next) {
       next.whenData((mapping) {
