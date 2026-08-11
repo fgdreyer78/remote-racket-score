@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_theme.dart';
-import '../../l10n/app_localizations.dart';
+import '../../providers/app_config_provider.dart';
 import '../../providers/key_event_provider.dart';
 import '../../providers/score_provider.dart';
 import '../button_mapping/button_mapping_screen.dart';
@@ -37,6 +37,7 @@ class HomeScreen extends ConsumerWidget {
     });
 
     const neonColor = Color(0xFFCCFF00);
+    final loc = AppConfig.of(context);
 
     return Scaffold(
       backgroundColor: AppTheme.surface,
@@ -58,7 +59,7 @@ class HomeScreen extends ConsumerWidget {
                         color: neonColor, size: isLandscape ? 48 : 72),
                     const SizedBox(height: 12),
                     Text(
-                      AppLocalizations.of(context)!.appTitle,
+                      loc.text('appTitle'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: neonColor,
@@ -74,7 +75,7 @@ class HomeScreen extends ConsumerWidget {
 
                 _MenuButton(
                   icon: Icons.play_circle_fill,
-                  label: AppLocalizations.of(context)!.newGame,
+                  label: loc.text('newGame'),
                   color: neonColor,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const NewGameScreen()),
@@ -98,7 +99,7 @@ class HomeScreen extends ConsumerWidget {
 
                 _MenuButton(
                   icon: Icons.tune,
-                  label: AppLocalizations.of(context)!.presets,
+                  label: loc.text('presets'),
                   color: Colors.white,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const SettingsScreen()),
@@ -109,7 +110,7 @@ class HomeScreen extends ConsumerWidget {
 
                 _MenuButton(
                   icon: Icons.history,
-                  label: AppLocalizations.of(context)!.history,
+                  label: loc.text('history'),
                   color: Colors.white,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const HistoryScreen()),
@@ -120,7 +121,7 @@ class HomeScreen extends ConsumerWidget {
 
                 _MenuButton(
                   icon: Icons.settings,
-                  label: AppLocalizations.of(context)!.settings,
+                  label: loc.text('settings'),
                   color: Colors.white,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const _ConfigScreen()),
@@ -234,13 +235,13 @@ class _ConfigScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     const neonColor = Color(0xFFCCFF00);
-    final loc = AppLocalizations.of(context)!;
+    final loc = AppConfig.of(context);
 
     return Scaffold(
       backgroundColor: AppTheme.surface,
       appBar: AppBar(
         title: Text(
-          loc.settings,
+          loc.text('configurations'),
           style: const TextStyle(color: neonColor, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
@@ -252,8 +253,8 @@ class _ConfigScreen extends ConsumerWidget {
         children: [
           _ConfigTile(
             icon: Icons.settings_input_antenna,
-            title: loc.sportSettings,
-            subtitle: loc.sportSettingsHint,
+            title: loc.text('sportSettings'),
+            subtitle: loc.text('sportSettingsHint'),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ButtonMappingScreen()),
             ),
@@ -261,15 +262,15 @@ class _ConfigScreen extends ConsumerWidget {
           const Divider(color: Colors.white12),
           _ConfigTile(
             icon: Icons.dashboard_customize,
-            title: loc.scoreLayout,
-            subtitle: loc.scoreLayoutHint,
+            title: loc.text('scoreLayout'),
+            subtitle: loc.text('scoreLayoutHint'),
             onTap: null,
           ),
           const Divider(color: Colors.white12),
           _ConfigTile(
             icon: Icons.language,
-            title: loc.speechLanguage,
-            subtitle: 'Interface, locução e frases personalizadas',
+            title: loc.text('speechLanguage'),
+            subtitle: loc.text('languageHint'),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const LanguageSettingsScreen()),
             ),
