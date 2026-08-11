@@ -12,6 +12,7 @@ import '../../providers/button_mapping_provider.dart';
 import '../../providers/game_config_provider.dart';
 import '../../providers/key_event_provider.dart';
 import '../../providers/score_provider.dart';
+import '../../providers/tts_config_provider.dart';
 import '../../providers/tts_provider.dart';
 import '../history/history_screen.dart';
 import '../button_mapping/button_mapping_screen.dart';
@@ -98,7 +99,8 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         _clockTimer?.cancel();
         _clockTimer = null;
         if (config.timeWarningSound && _lastClockPlayWarning) {
-          ref.read(ttsServiceProvider).speakTimeWarning(config);
+          final ttsConfig = ref.read(ttsConfigProvider);
+          ref.read(ttsServiceProvider).speakTimeWarning(config, ttsConfig);
         }
         // Encadear próximo timer se houver callback
         if (_onClockComplete != null) {

@@ -6,6 +6,7 @@ import '../models/match_record.dart';
 import '../models/score_state.dart';
 import 'game_config_provider.dart';
 import 'match_history_provider.dart';
+import 'tts_config_provider.dart';
 import 'tts_provider.dart';
 
 final scoreStateProvider =
@@ -58,7 +59,10 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
 
     _lastScorerIsA = forTeamA;
     state = ScoringEngine(config).addPoint(prev, forTeamA);
-    _ref.read(ttsServiceProvider).announceTransition(prev, state, config);
+    final ttsConfig = _ref.read(ttsConfigProvider);
+    _ref
+        .read(ttsServiceProvider)
+        .announceTransition(prev, state, config, ttsConfig);
 
     if (!prev.matchOver && state.matchOver) {
       _saveMatch(config);

@@ -7,8 +7,8 @@ import '../../providers/key_event_provider.dart';
 import '../../providers/score_provider.dart';
 import '../button_mapping/button_mapping_screen.dart';
 import '../history/history_screen.dart';
-import '../../providers/locale_provider.dart';
 import '../score/score_screen.dart';
+import '../settings/language_settings_screen.dart';
 import '../settings/settings_screen.dart';
 import 'new_game_screen.dart';
 
@@ -234,7 +234,6 @@ class _ConfigScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     const neonColor = Color(0xFFCCFF00);
-    final currentLocale = ref.watch(localeProvider);
     final loc = AppLocalizations.of(context)!;
 
     return Scaffold(
@@ -267,34 +266,12 @@ class _ConfigScreen extends ConsumerWidget {
             onTap: null,
           ),
           const Divider(color: Colors.white12),
-          ListTile(
-            leading: const Icon(Icons.language, color: neonColor),
-            title: Text(
-              loc.speechLanguage,
-              style: const TextStyle(
-                  color: AppTheme.onSurface, fontWeight: FontWeight.bold),
-            ),
-            trailing: DropdownButton<Locale>(
-              value: currentLocale,
-              dropdownColor: AppTheme.surfaceVariant,
-              underline: const SizedBox.shrink(),
-              items: const [
-                DropdownMenuItem(
-                  value: Locale('pt', 'BR'),
-                  child: Text('Português',
-                      style: TextStyle(color: AppTheme.onSurface)),
-                ),
-                DropdownMenuItem(
-                  value: Locale('en', 'US'),
-                  child: Text('English',
-                      style: TextStyle(color: AppTheme.onSurface)),
-                ),
-              ],
-              onChanged: (locale) {
-                if (locale != null) {
-                  ref.read(localeProvider.notifier).setLocale(locale);
-                }
-              },
+          _ConfigTile(
+            icon: Icons.language,
+            title: loc.speechLanguage,
+            subtitle: 'Interface, locução e frases personalizadas',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const LanguageSettingsScreen()),
             ),
           ),
         ],

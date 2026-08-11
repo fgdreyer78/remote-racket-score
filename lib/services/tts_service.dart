@@ -1,9 +1,9 @@
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audio_session/audio_session.dart';
 
-import '../features/score/scoring_engine.dart';
 import '../models/game_config.dart';
 import '../models/score_state.dart';
+import '../providers/tts_config_provider.dart';
 
 class TtsService {
   TtsService() {
@@ -15,21 +15,6 @@ class TtsService {
 
   late final FlutterTts _tts;
   String _currentLanguage = 'pt-BR';
-  final List<String> _numberWords = [
-    'zero',
-    'um',
-    'dois',
-    'três',
-    'quatro',
-    'cinco',
-    'seis',
-    'sete',
-    'oito',
-    'nove',
-    'dez'
-  ];
-
-  String _n(int i) => i < _numberWords.length ? _numberWords[i] : '$i';
 
   Future<void> _ensureLanguage(String languageCode) async {
     if (_currentLanguage == languageCode) return;
@@ -77,7 +62,7 @@ class TtsService {
     } catch (_) {}
   }
 
-  Future<void> _configureAudioRoute(GameConfig config) async {
+  Future<void> _configureAudioRoute() async {
     try {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration(
@@ -96,227 +81,120 @@ class TtsService {
     }
   }
 
-  Future<void> speakCurrentScore(ScoreState state, GameConfig config) async {
-    await _ensureLanguage(config.ttsLanguage);
+  // ─── Locuções usando TtsConfig ───────────────────────────────
+
+  Future<void> speakCurrentScore(
+      ScoreState state, GameConfig config, TtsConfig ttsConfig) async {
+    await _ensureLanguage(ttsConfig.languageCode);
     if (state.isTiebreak) {
       final sa = state.tiebreakPointsA;
       final sb = state.tiebreakPointsB;
       if (sa == 0 && sb == 0) return;
       final first = state.serverIsA ? sa : sb;
       final second = state.serverIsA ? sb : sa;
-      if (config.ttsLanguage == 'pt-BR') {
-        await _speak('$first a $second no taibrêik', config);
-      } else {
-        await _speak('$first to $second in the tiebreak', config);
-      }
+      await _speak(
+          '$first ${ttsConfig.phrase('tiebreakScore')} $second ${ttsConfig.phrase('tiebreakSuffix')}',
+          config);
       return;
     }
     final pa = state.pointsA;
     final pb = state.pointsB;
 
-    // 40 iguais: ambos com 3+ pontos (40 ou mais) e iguais
+    // 40 iguais: ambos com 3+ pontos e iguais
     final isEqual = pa >= 3 && pb >= 3 && pa == pb;
-    final equalWord = config.ttsLanguage == 'pt-BR' ? 'iguais' : 'all';
     final serverPoints = state.serverIsA ? pa : pb;
     final receiverPoints = state.serverIsA ? pb : pa;
 
-    if (config.ttsLanguage == 'en-US') {
-      final s = _pointWordEn(serverPoints);
-      final r = _pointWordEn(receiverPoints);
-      if (isEqual) {
-        await _speak('$s $equalWord', config);
-      } else {
-        await _speak('$s $r', config);
-      }
+    final s = ttsConfig.pointWord(serverPoints);
+    final r = ttsConfig.pointWord(receiverPoints);
+
+    if (isEqual) {
+      await _speak('$s ${ttsConfig.phrase('deuce')}', config);
     } else {
-      final s = _pointWordPt(serverPoints);
-      final r = _pointWordPt(receiverPoints);
-      if (isEqual) {
-        await _speak('$s $equalWord', config);
-      } else {
-        await _speak('$s $r', config);
-      }
+      await _speak('$s $r', config);
     }
   }
 
-  String _pointWordPt(int points) {
-    switch (points) {
-      case 0:
-        return 'zero';
-      case 1:
-        return '15';
-      case 2:
-        return '30';
-      case 3:
-        return '40';
-      default:
-        return '40';
-    }
-  }
-
-  String _pointWordEn(int points) {
-    switch (points) {
-      case 0:
-        return 'love';
-      case 1:
-        return 'fifteen';
-      case 2:
-        return 'thirty';
-      case 3:
-        return 'forty';
-      default:
-        return 'forty';
-    }
-  }
-
-  Future<void> speakGameAndSetScore(
-      ScoreState newState, ScoreState previousState, GameConfig config) async {
-    await _ensureLanguage(config.ttsLanguage);
+  Future<void> speakGameAndSetScore(ScoreState newState,
+      ScoreState previousState, GameConfig config, TtsConfig ttsConfig) async {
+    await _ensureLanguage(ttsConfig.languageCode);
     final newGa = newState.gamesA;
     final newGb = newState.gamesB;
     final aWonGame = newGa > previousState.gamesA;
     final gameWinnerName = aWonGame ? config.playerAName : config.playerBName;
     final setNumber = newState.currentSet;
-    final ordinal = _ordinalSetName(setNumber, config.ttsLanguage);
+    final ordinal = ttsConfig.ordinal(setNumber);
 
     // 1. SEMPRE diz "Game [JOGADOR]"
-    if (config.ttsLanguage == 'pt-BR') {
-      await _speak('Game $gameWinnerName', config);
-    } else {
-      await _speak('Game $gameWinnerName', config);
-    }
+    await _speak('${ttsConfig.phrase('game')} $gameWinnerName', config);
 
     // 2. Placar do set
     if (newGa == newGb) {
       // Empate
-      if (config.ttsLanguage == 'pt-BR') {
-        await _speak('$ordinal set empatado em $newGa a $newGb', config);
-      } else {
-        await _speak('$ordinal set tied at $newGa all', config);
-      }
+      await _speak(
+          '$ordinal ${ttsConfig.phrase('setTied')} $newGa a $newGb', config);
     } else {
       // Quem lidera (baseado no placar REAL de games)
       final leaderName =
           newGa > newGb ? config.playerAName : config.playerBName;
       final leaderGames = newGa > newGb ? newGa : newGb;
       final otherGames = newGa > newGb ? newGb : newGa;
-      if (config.ttsLanguage == 'pt-BR') {
-        await _speak(
-            '$leaderName lidera por $leaderGames games a $otherGames', config);
-      } else {
-        await _speak(
-            '$leaderName leads $leaderGames games to $otherGames', config);
-      }
+      await _speak(
+          '$leaderName ${ttsConfig.phrase('leads')} $leaderGames ${ttsConfig.phrase('gamesUnit')} $otherGames',
+          config);
     }
   }
 
-  Future<void> speakTiebreakAndSet(
-      ScoreState newState, ScoreState previousState, GameConfig config) async {
-    await _ensureLanguage(config.ttsLanguage);
+  Future<void> speakTiebreakAndSet(ScoreState newState,
+      ScoreState previousState, GameConfig config, TtsConfig ttsConfig) async {
+    await _ensureLanguage(ttsConfig.languageCode);
     final aWon = newState.setsA > previousState.setsA;
     final name = aWon ? config.playerAName : config.playerBName;
     final ga = newState.gamesA;
     final gb = newState.gamesB;
     final winnerGames = aWon ? ga : gb;
     final otherGames = aWon ? gb : ga;
-    if (config.ttsLanguage == 'pt-BR') {
-      await _speak('$name lidera por $winnerGames games a $otherGames', config);
-    } else {
-      await _speak('$name leads $winnerGames games to $otherGames', config);
-    }
+    await _speak(
+        '$name ${ttsConfig.phrase('leads')} $winnerGames ${ttsConfig.phrase('gamesUnit')} $otherGames',
+        config);
   }
 
-  Future<void> speakMatchWinner(ScoreState state, GameConfig config) async {
-    await _ensureLanguage(config.ttsLanguage);
+  Future<void> speakMatchWinner(
+      ScoreState state, GameConfig config, TtsConfig ttsConfig) async {
+    await _ensureLanguage(ttsConfig.languageCode);
     final name =
         state.winnerIsA == true ? config.playerAName : config.playerBName;
-    if (config.ttsLanguage == 'pt-BR') {
-      await _speak('Game, set, match $name', config);
-    } else {
-      await _speak('Game, set and match $name', config);
-    }
+    await _speak('${ttsConfig.phrase('matchWinner')} $name', config);
   }
 
-  Future<void> speakAdvantage(String playerName, GameConfig config) async {
-    await _ensureLanguage(config.ttsLanguage);
-    if (config.ttsLanguage == 'pt-BR') {
-      await _speak('Vantagem $playerName', config);
-    } else {
-      await _speak('Advantage $playerName', config);
-    }
+  Future<void> speakAdvantage(
+      String playerName, GameConfig config, TtsConfig ttsConfig) async {
+    await _ensureLanguage(ttsConfig.languageCode);
+    await _speak('${ttsConfig.phrase('advantage')} $playerName', config);
   }
 
   Future<void> speakTiebreakStart(
-      ScoreState newState, GameConfig config) async {
-    await _ensureLanguage(config.ttsLanguage);
-    if (config.ttsLanguage == 'pt-BR') {
-      await _speak('Taibrêik', config);
-    } else {
-      final setNumber = newState.currentSet;
-      final ord = _ordinalSetName(setNumber, config.ttsLanguage);
-      await _speak('$ord set tiebreak', config);
-    }
+      ScoreState newState, GameConfig config, TtsConfig ttsConfig) async {
+    await _ensureLanguage(ttsConfig.languageCode);
+    final setNumber = newState.currentSet;
+    final ordinal = ttsConfig.ordinal(setNumber);
+    await _speak('$ordinal ${ttsConfig.phrase('tiebreak')}', config);
   }
 
-  Future<void> speakSetWinner(
-      ScoreState previousState, ScoreState newState, GameConfig config) async {
-    await _ensureLanguage(config.ttsLanguage);
-    final setsBeforeA = previousState.setsA;
-    final setsBeforeB = previousState.setsB;
-    final setsAfterA = newState.setsA;
-    final setsAfterB = newState.setsB;
-    final aWonSet = setsAfterA > setsBeforeA;
+  Future<void> speakSetWinner(ScoreState previousState, ScoreState newState,
+      GameConfig config, TtsConfig ttsConfig) async {
+    await _ensureLanguage(ttsConfig.languageCode);
+    final aWonSet = newState.setsA > previousState.setsA;
     final name = aWonSet ? config.playerAName : config.playerBName;
-    final setNumber = setsAfterA + setsAfterB;
-    final ordinal = _ordinalSetName(setNumber, config.ttsLanguage);
-    if (config.ttsLanguage == 'pt-BR') {
-      await _speak('Game e $ordinal set $name', config);
-    } else {
-      await _speak('Game and $ordinal set $name', config);
-    }
+    final setNumber = newState.setsA + newState.setsB;
+    final ordinal = ttsConfig.ordinal(setNumber);
+    await _speak(
+        '${ttsConfig.phrase('setWinnerPrefix')} $ordinal set $name', config);
   }
 
-  String _ordinalSetName(int setNumber, String languageCode) {
-    if (languageCode == 'pt-BR') {
-      switch (setNumber) {
-        case 1:
-          return 'primeiro';
-        case 2:
-          return 'segundo';
-        case 3:
-          return 'terceiro';
-        case 4:
-          return 'quarto';
-        case 5:
-          return 'quinto';
-        default:
-          return '$setNumberº';
-      }
-    } else {
-      switch (setNumber) {
-        case 1:
-          return 'first';
-        case 2:
-          return 'second';
-        case 3:
-          return 'third';
-        case 4:
-          return 'fourth';
-        case 5:
-          return 'fifth';
-        default:
-          return '${setNumber}th';
-      }
-    }
-  }
-
-  Future<void> speakTimeWarning(GameConfig config) async {
-    await _ensureLanguage(config.ttsLanguage);
-    if (config.ttsLanguage == 'pt-BR') {
-      await _speak('Táim', config);
-    } else {
-      await _speak('Time', config);
-    }
+  Future<void> speakTimeWarning(GameConfig config, TtsConfig ttsConfig) async {
+    await _ensureLanguage(ttsConfig.languageCode);
+    await _speak(ttsConfig.phrase('timeWarning'), config);
   }
 
   Future<void> speakCoinToss(String text, GameConfig config) async {
@@ -324,44 +202,45 @@ class TtsService {
     await _speak(text, config);
   }
 
-  Future<void> announceTransition(
-      ScoreState previousState, ScoreState newState, GameConfig config) async {
+  // ─── Ponto de entrada principal ──────────────────────────────
+
+  Future<void> announceTransition(ScoreState previousState, ScoreState newState,
+      GameConfig config, TtsConfig ttsConfig) async {
     if (newState.matchOver) {
-      await speakMatchWinner(newState, config);
+      await speakMatchWinner(newState, config, ttsConfig);
       return;
     }
     if (newState.isTiebreak && !previousState.isTiebreak) {
-      await speakTiebreakStart(newState, config);
+      await speakTiebreakStart(newState, config, ttsConfig);
       return;
     }
     final setJustEnded = (newState.setsA != previousState.setsA) ||
         (newState.setsB != previousState.setsB);
     if (setJustEnded) {
-      await speakSetWinner(previousState, newState, config);
+      await speakSetWinner(previousState, newState, config, ttsConfig);
       return;
     }
     final gameJustEnded = (newState.gamesA != previousState.gamesA ||
             newState.gamesB != previousState.gamesB) &&
         !newState.isTiebreak;
     if (gameJustEnded) {
-      await speakGameAndSetScore(newState, previousState, config);
+      await speakGameAndSetScore(newState, previousState, config, ttsConfig);
       return;
     }
-    // Vantagem: 4x3 ou 3x4 — SEMPRE anuncia, independentemente de config
+    // Vantagem: 4x3 ou 3x4 — SEMPRE anuncia
     if (newState.pointsA == 4 && newState.pointsB == 3) {
-      await speakAdvantage(config.playerAName, config);
+      await speakAdvantage(config.playerAName, config, ttsConfig);
       return;
     }
     if (newState.pointsB == 4 && newState.pointsA == 3) {
-      await speakAdvantage(config.playerBName, config);
+      await speakAdvantage(config.playerBName, config, ttsConfig);
       return;
     }
-    await speakCurrentScore(newState, config);
+    await speakCurrentScore(newState, config, ttsConfig);
   }
 
-  // Modificado para sempre rotear o áudio antes de falar
   Future<void> _speak(String text, GameConfig config) async {
-    await _configureAudioRoute(config);
+    await _configureAudioRoute();
     await _tts.speak(text);
   }
 
