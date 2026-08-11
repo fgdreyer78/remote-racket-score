@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_theme.dart';
 import '../../models/match_record.dart';
+import '../../providers/app_config_provider.dart';
 import '../../providers/match_history_provider.dart';
 import 'match_detail_screen.dart';
 
@@ -12,15 +13,16 @@ class HistoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final loc = AppConfig.of(context);
     final historyAsync = ref.watch(matchHistoryProvider);
 
     return Scaffold(
       backgroundColor: AppTheme.surface,
       appBar: AppBar(
-        title: const Text(
-          'Histórico',
-          style:
-              TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+        title: Text(
+          loc.text('historyTitle'),
+          style: const TextStyle(
+              color: AppTheme.primary, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppTheme.primary),
@@ -31,7 +33,7 @@ class HistoryScreen extends ConsumerWidget {
                   historyAsync.valueOrNull!.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.delete_sweep, color: AppTheme.error),
-                  tooltip: 'Limpar histórico',
+                  tooltip: loc.text('clearHistory'),
                   onPressed: () => _confirmClear(context, ref),
                 )
               : const SizedBox.shrink(),
@@ -41,28 +43,28 @@ class HistoryScreen extends ConsumerWidget {
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppTheme.primary),
         ),
-        error: (e, _) => const Center(
+        error: (e, _) => Center(
           child: Text(
-            'Erro ao carregar histórico',
-            style: TextStyle(color: AppTheme.error, fontSize: 16),
+            loc.text('noMatches'),
+            style: const TextStyle(color: AppTheme.error, fontSize: 16),
           ),
         ),
         data: (records) {
           if (records.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.history, color: Colors.white24, size: 64),
-                  SizedBox(height: 16),
+                  const Icon(Icons.history, color: Colors.white24, size: 64),
+                  const SizedBox(height: 16),
                   Text(
-                    'Nenhuma partida registrada',
-                    style: TextStyle(color: Colors.white38, fontSize: 16),
+                    loc.text('noMatches'),
+                    style: const TextStyle(color: Colors.white38, fontSize: 16),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
-                    'Finalize uma partida para vê-la aqui',
-                    style: TextStyle(color: Colors.white24, fontSize: 13),
+                    loc.text('noMatchesHint'),
+                    style: const TextStyle(color: Colors.white24, fontSize: 13),
                   ),
                 ],
               ),
@@ -91,14 +93,15 @@ class HistoryScreen extends ConsumerWidget {
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, MatchRecord record) {
+    final loc = AppConfig.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surfaceVariant,
-        title: const Text(
-          'Apagar partida?',
-          style:
-              TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+        title: Text(
+          loc.text('deleteMatch'),
+          style: const TextStyle(
+              color: AppTheme.primary, fontWeight: FontWeight.bold),
         ),
         content: Text(
           '${record.playerAName} vs ${record.playerBName}',
@@ -107,16 +110,16 @@ class HistoryScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child:
-                const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+            child: Text(loc.text('cancel'),
+                style: const TextStyle(color: Colors.white54)),
           ),
           TextButton(
             onPressed: () {
               ref.read(matchHistoryProvider.notifier).deleteRecord(record.id);
               Navigator.of(ctx).pop();
             },
-            child:
-                const Text('Apagar', style: TextStyle(color: AppTheme.error)),
+            child: Text(loc.text('delete'),
+                style: const TextStyle(color: AppTheme.error)),
           ),
         ],
       ),
@@ -124,32 +127,33 @@ class HistoryScreen extends ConsumerWidget {
   }
 
   void _confirmClear(BuildContext context, WidgetRef ref) {
+    final loc = AppConfig.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surfaceVariant,
-        title: const Text(
-          'Limpar histórico',
-          style:
-              TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+        title: Text(
+          loc.text('clearHistory'),
+          style: const TextStyle(
+              color: AppTheme.primary, fontWeight: FontWeight.bold),
         ),
-        content: const Text(
-          'Deseja apagar todo o histórico de partidas?',
-          style: TextStyle(color: AppTheme.onSurface),
+        content: Text(
+          loc.text('clearHistoryConfirm'),
+          style: const TextStyle(color: AppTheme.onSurface),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child:
-                const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+            child: Text(loc.text('cancel'),
+                style: const TextStyle(color: Colors.white54)),
           ),
           TextButton(
             onPressed: () {
               ref.read(matchHistoryProvider.notifier).clear();
               Navigator.of(ctx).pop();
             },
-            child:
-                const Text('Apagar', style: TextStyle(color: AppTheme.error)),
+            child: Text(loc.text('delete'),
+                style: const TextStyle(color: AppTheme.error)),
           ),
         ],
       ),
@@ -186,7 +190,6 @@ class _MatchTile extends StatelessWidget {
     return '${h}h${m > 0 ? ' ${m}min' : ''}';
   }
 
-  /// Reconstrói o placar final a partir da lista de pontos.
   _ScoreSummary get _summary {
     int setsA = 0;
     int setsB = 0;
@@ -229,6 +232,7 @@ class _MatchTile extends StatelessWidget {
     final summary = _summary;
     final neonColor = AppTheme.primary;
     final aWon = summary.setsA > summary.setsB;
+    final loc = AppConfig.of(context);
 
     return Card(
       color: AppTheme.surfaceVariant,
@@ -242,7 +246,6 @@ class _MatchTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Cabeçalho: data e duração
               Row(
                 children: [
                   const Icon(Icons.sports_tennis,
@@ -270,8 +273,6 @@ class _MatchTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-
-              // Placar: Jogador A  X  Jogador B
               Row(
                 children: [
                   Expanded(
@@ -320,29 +321,26 @@ class _MatchTile extends StatelessWidget {
                   ),
                 ],
               ),
-
               const SizedBox(height: 8),
-
-              // Botões de ação
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   IconButton(
                     icon: const Icon(Icons.share,
                         color: Colors.white38, size: 20),
-                    tooltip: 'Compartilhar',
+                    tooltip: loc.text('share'),
                     onPressed: () {
                       final winner = summary.setsA > summary.setsB
                           ? record.playerAName
                           : record.playerBName;
                       Share.share(
-                          '${record.playerAName} ${summary.setsA} x ${summary.setsB} ${record.playerBName}\nVencedor: $winner\n${_formatDate(record.startedAt)}');
+                          '${record.playerAName} ${summary.setsA} x ${summary.setsB} ${record.playerBName}\nWinner: $winner\n${_formatDate(record.startedAt)}');
                     },
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline,
                         color: AppTheme.error, size: 20),
-                    tooltip: 'Apagar',
+                    tooltip: loc.text('delete'),
                     onPressed: onDelete,
                   ),
                 ],
