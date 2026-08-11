@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/app_theme.dart';
 import '../../providers/app_config_provider.dart';
 import '../../providers/key_event_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/score_provider.dart';
 import '../button_mapping/button_mapping_screen.dart';
 import '../history/history_screen.dart';
@@ -35,6 +36,9 @@ class HomeScreen extends ConsumerWidget {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(keyEventServiceProvider).setGameMode(false);
     });
+
+    // Força rebuild quando o idioma muda
+    ref.watch(localeProvider);
 
     const neonColor = Color(0xFFCCFF00);
     final loc = AppConfig.of(context);
@@ -234,6 +238,7 @@ class _ConfigScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(localeProvider);
     const neonColor = Color(0xFFCCFF00);
     final loc = AppConfig.of(context);
 

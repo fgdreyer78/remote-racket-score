@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/app_theme.dart';
 import '../../models/match_record.dart';
 import '../../providers/app_config_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/match_history_provider.dart';
 import 'match_detail_screen.dart';
 
@@ -13,6 +14,7 @@ class HistoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(localeProvider);
     final loc = AppConfig.of(context);
     final historyAsync = ref.watch(matchHistoryProvider);
 
