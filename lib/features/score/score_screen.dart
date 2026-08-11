@@ -296,7 +296,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                             Text(
                               config.sportName.isNotEmpty
                                   ? config.sportName
-                                  : 'Placar',
+                                  : loc.text('score'),
                               style: Theme.of(context)
                                   .textTheme
                                   .titleLarge
@@ -309,17 +309,17 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                                 IconButton(
                                     icon: const Icon(Icons.history,
                                         color: neonColor),
-                                    tooltip: 'Histórico',
+                                    tooltip: loc.text('history'),
                                     onPressed: () => _openHistory(context)),
                                 IconButton(
                                     icon: const Icon(Icons.casino,
                                         color: neonColor),
-                                    tooltip: 'Coin toss',
+                                    tooltip: loc.text('coinToss'),
                                     onPressed: () => _coinToss(context)),
                                 IconButton(
                                     icon: const Icon(Icons.refresh,
                                         color: neonColor),
-                                    tooltip: 'Nova partida',
+                                    tooltip: loc.text('newMatch'),
                                     onPressed: () => _confirmReset(context)),
                                 IconButton(
                                     icon: Icon(Icons.sports_tennis,
@@ -337,8 +337,8 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                                                 score.setsB > 0 ||
                                                 score.gamesA > 0 ||
                                                 score.gamesB > 0)
-                                        ? 'Bloqueado durante a partida'
-                                        : 'Configurações',
+                                        ? loc.text('lockedDuringMatch')
+                                        : loc.text('configurations'),
                                     onPressed: config.lockSettingsDuringMatch &&
                                             (score.setsA > 0 ||
                                                 score.setsB > 0 ||
@@ -350,13 +350,13 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                                     icon: const Icon(
                                         Icons.settings_input_antenna,
                                         color: neonColor),
-                                    tooltip: 'Mapear botões',
+                                    tooltip: loc.text('mapButtons'),
                                     onPressed: () =>
                                         _openButtonMapping(context)),
                                 IconButton(
                                     icon: const Icon(Icons.home,
                                         color: neonColor),
-                                    tooltip: 'Menu principal',
+                                    tooltip: loc.text('home'),
                                     onPressed: () => _goHome(context)),
                               ],
                             ),
@@ -393,6 +393,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   }
 
   Future<void> _goHome(BuildContext context) async {
+    final loc = AppConfig.of(context);
     final score = ref.read(scoreStateProvider);
     final hasStarted = score.setsA > 0 ||
         score.setsB > 0 ||
@@ -404,21 +405,20 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: AppTheme.surfaceVariant,
-          title: const Text('Sair da partida?',
-              style: TextStyle(
+          title: Text(loc.text('leaveMatch'),
+              style: const TextStyle(
                   color: AppTheme.primary, fontWeight: FontWeight.bold)),
-          content: const Text(
-              'Você poderá continuar esta partida depois pelo menu principal.',
-              style: TextStyle(color: AppTheme.onSurface)),
+          content: Text(loc.text('leaveMatchHint'),
+              style: const TextStyle(color: AppTheme.onSurface)),
           actions: [
             TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text('Ficar',
-                    style: TextStyle(color: AppTheme.onSurface))),
+                child: Text(loc.text('stay'),
+                    style: const TextStyle(color: AppTheme.onSurface))),
             TextButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                child: const Text('Sair',
-                    style: TextStyle(color: AppTheme.primary))),
+                child: Text(loc.text('leave'),
+                    style: const TextStyle(color: AppTheme.primary))),
           ],
         ),
       );
@@ -434,26 +434,26 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   }
 
   Future<void> _confirmReset(BuildContext context) async {
+    final loc = AppConfig.of(context);
     final shouldReset = await showDialog<bool>(
           context: context,
           builder: (context) {
             return AlertDialog(
               backgroundColor: AppTheme.surfaceVariant,
-              title: const Text('Nova partida',
-                  style: TextStyle(
+              title: Text(loc.text('newMatch'),
+                  style: const TextStyle(
                       color: AppTheme.primary, fontWeight: FontWeight.bold)),
-              content: const Text(
-                  'Tem certeza que deseja resetar o placar e iniciar uma nova partida?',
-                  style: TextStyle(color: AppTheme.onSurface)),
+              content: Text(loc.text('resetMatchConfirm'),
+                  style: const TextStyle(color: AppTheme.onSurface)),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('Cancelar',
-                        style: TextStyle(color: AppTheme.onSurface))),
+                    child: Text(loc.text('cancel'),
+                        style: const TextStyle(color: AppTheme.onSurface))),
                 TextButton(
                     onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text('Nova partida',
-                        style: TextStyle(color: AppTheme.primary))),
+                    child: Text(loc.text('newMatch'),
+                        style: const TextStyle(color: AppTheme.primary))),
               ],
             );
           },
@@ -466,6 +466,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   }
 
   Future<void> _coinToss(BuildContext context) async {
+    final loc = AppConfig.of(context);
     final config = ref.read(gameConfigProvider).valueOrNull;
     if (config == null) return;
     final random = Random();
@@ -477,21 +478,20 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: AppTheme.surfaceVariant,
-          title: const Text('Coin toss',
-              style: TextStyle(
+          title: Text(loc.text('coinToss'),
+              style: const TextStyle(
                   color: AppTheme.primary, fontWeight: FontWeight.bold)),
-          content: Text(
-              '$winnerName ganhou o sorteio.\nEscolha se vai sacar ou receber primeiro.',
+          content: Text('$winnerName ${loc.text('coinToss')}',
               style: const TextStyle(color: AppTheme.onSurface)),
           actions: [
             TextButton(
                 onPressed: () => Navigator.of(context).pop('receive'),
-                child: const Text('Receber',
-                    style: TextStyle(color: AppTheme.onSurface))),
+                child: Text(loc.text('receive'),
+                    style: const TextStyle(color: AppTheme.onSurface))),
             TextButton(
                 onPressed: () => Navigator.of(context).pop('serve'),
-                child: const Text('Sacar',
-                    style: TextStyle(color: AppTheme.primary))),
+                child: Text(loc.text('serve'),
+                    style: const TextStyle(color: AppTheme.primary))),
           ],
         );
       },
@@ -598,6 +598,7 @@ class _ScoreContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppConfig.of(context);
     String pA = '';
     String pB = '';
 
@@ -850,8 +851,6 @@ class _ScoreContent extends StatelessWidget {
       );
     }
 
-    final ttsLanguage = config.ttsLanguage;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -871,9 +870,7 @@ class _ScoreContent extends StatelessWidget {
           if (score.matchOver && score.winnerIsA != null) ...[
             const SizedBox(height: 24),
             Text(
-              ttsLanguage == 'pt-BR'
-                  ? 'Vencedor: ${score.winnerIsA! ? config.playerAName : config.playerBName}'
-                  : 'Winner: ${score.winnerIsA! ? config.playerAName : config.playerBName}',
+              '${loc.text('winner')}: ${score.winnerIsA! ? config.playerAName : config.playerBName}',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: neonColor,
                     fontWeight: FontWeight.bold,
