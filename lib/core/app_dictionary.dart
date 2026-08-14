@@ -38,9 +38,12 @@ class AppDictionary {
       'startMatch': 'Iniciar partida?',
       'presetLabelShort': 'Preset',
       'coinToss': 'Coin Toss',
+      'coinTossWinner': '{winner} ganhou o sorteio!\nEscolha:',
       'receive': 'Receber',
       'serve': 'Sacar',
       'skip': 'Pular',
+      'newGameTitle': 'Novo Jogo',
+      'presetDefaultShort': 'Padrão',
 
       // ─── Placar ───
       'score': 'Placar',
@@ -201,9 +204,12 @@ class AppDictionary {
       'startMatch': 'Start match?',
       'presetLabelShort': 'Preset',
       'coinToss': 'Coin Toss',
+      'coinTossWinner': '{winner} won the toss!\nChoose:',
       'receive': 'Receive',
       'serve': 'Serve',
       'skip': 'Skip',
+      'newGameTitle': 'New Game',
+      'presetDefaultShort': 'Default',
 
       // ─── Score ───
       'score': 'Score',
