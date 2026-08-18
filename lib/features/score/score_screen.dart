@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/ad_mob_service.dart';
+import '../../widgets/bottom_banner_ad.dart';
+
 import '../../core/app_theme.dart';
 import '../../models/button_mapping.dart';
 import '../../models/game_config.dart';
@@ -55,6 +58,8 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   @override
   void initState() {
     super.initState();
+    // Carrega o primeiro anúncio intersticial
+    AdMobService.instance.loadAd();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(keyEventServiceProvider).setGameMode(true);
       // Força landscape se layoutMode == 1
@@ -72,6 +77,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   void dispose() {
     _clockTimer?.cancel();
     _flashTimer?.cancel();
+    AdMobService.instance.dispose();
     ref.read(keyEventServiceProvider).setGameMode(false);
     // Restaura orientação ao sair
     SystemChrome.setPreferredOrientations([
@@ -222,6 +228,11 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         };
       }
 
+      // Exibe anúncio intersticial quando um set termina
+      if (setEnded) {
+        AdMobService.instance.showAdIfAvailable();
+      }
+
       if (setEnded && config.breakBetweenSetsSeconds > 0) {
         _startClock(config.breakBetweenSetsSeconds, 'Intervalo', config,
             playWarningSound: true, onComplete: serveClockAfterBreak);
@@ -254,6 +265,18 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
             ? const Center(child: CircularProgressIndicator(color: neonColor))
             : Stack(
                 children: [
+                  // Anúncio banner na parte inferior da tela
+                  const Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: SafeArea(
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: BottomBannerAd(),
+                      ),
+                    ),
+                  ),
                   SafeArea(
                     child: _ScoreContent(
                       score: score,

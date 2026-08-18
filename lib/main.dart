@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'core/app_theme.dart';
 import 'features/home/home_screen.dart';
@@ -28,6 +29,9 @@ void main() async {
     // Se o áudio falhar, cria um handler dummy para o app não quebrar
     globalAudioHandler = MatchAudioHandler();
   }
+
+  // Inicializa o Google Mobile Ads SDK
+  await MobileAds.instance.initialize();
 
   // Mantém a sua configuração original de orientação de tela
   SystemChrome.setPreferredOrientations([
