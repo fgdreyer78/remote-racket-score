@@ -100,6 +100,13 @@ class TtsService {
     final pa = state.pointsA;
     final pb = state.pointsB;
 
+    // Vantagem: ambos com ≥3 pontos e um à frente por 1 ponto
+    if (pa >= 3 && pb >= 3 && (pa - pb).abs() == 1) {
+      final advantagePlayer = pa > pb ? config.playerAName : config.playerBName;
+      await speakAdvantage(advantagePlayer, config, ttsConfig);
+      return;
+    }
+
     // 40 iguais: ambos com 3+ pontos e iguais
     final isEqual = pa >= 3 && pb >= 3 && pa == pb;
     final serverPoints = state.serverIsA ? pa : pb;
@@ -227,13 +234,14 @@ class TtsService {
       await speakGameAndSetScore(newState, previousState, config, ttsConfig);
       return;
     }
-    // Vantagem: 4x3 ou 3x4 — SEMPRE anuncia
-    if (newState.pointsA == 4 && newState.pointsB == 3) {
-      await speakAdvantage(config.playerAName, config, ttsConfig);
-      return;
-    }
-    if (newState.pointsB == 4 && newState.pointsA == 3) {
-      await speakAdvantage(config.playerBName, config, ttsConfig);
+    // Vantagem: ambos com ≥3 pontos e um à frente por 1 ponto
+    if (newState.pointsA >= 3 &&
+        newState.pointsB >= 3 &&
+        (newState.pointsA - newState.pointsB).abs() == 1) {
+      final advantagePlayer = newState.pointsA > newState.pointsB
+          ? config.playerAName
+          : config.playerBName;
+      await speakAdvantage(advantagePlayer, config, ttsConfig);
       return;
     }
     await speakCurrentScore(newState, config, ttsConfig);
