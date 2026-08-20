@@ -191,6 +191,21 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
           next.tiebreakPointsA != prev.tiebreakPointsA ||
           next.tiebreakPointsB != prev.tiebreakPointsB;
 
+      // Se a partida acabou, cancelar qualquer timer em execução e não
+      // iniciar novos timers.
+      if (next.matchOver) {
+        _clockTimer?.cancel();
+        _clockTimer = null;
+        if (mounted) {
+          setState(() {
+            _clockRemaining = null;
+            _clockLabel = '';
+          });
+        }
+        // Não iniciar nenhum timer se a partida acabou.
+        return;
+      }
+
       if (pointAdded) {
         // Usa diretamente quem fez o ponto — sem detecção por estado
         final scorerIsA = ref.read(scoreStateProvider.notifier).lastScorerIsA;
@@ -425,7 +440,8 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         score.gamesA > 0 ||
         score.gamesB > 0;
 
-    if (hasStarted) {
+    // Se a partida já terminou, não precisa de confirmação.
+    if (hasStarted && !score.matchOver) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -878,30 +894,37 @@ class _ScoreContent extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Stack(
         children: [
-          Expanded(
-            child: Center(
-              child: FittedBox(
-                fit: BoxFit.contain,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: content,
-                ),
+          // Conteúdo do placar
+          Center(
+            child: FittedBox(
+              fit: BoxFit.contain,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: content,
               ),
             ),
           ),
-          if (score.matchOver && score.winnerIsA != null) ...[
-            const SizedBox(height: 24),
-            Text(
-              '${loc.text('winner')}: ${score.winnerIsA! ? config.playerAName : config.playerBName}',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: neonColor,
-                    fontWeight: FontWeight.bold,
-                  ),
+          // Texto do vencedor centralizado na tela
+          if (score.matchOver && score.winnerIsA != null)
+            Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface.withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '${loc.text('winner')}: ${score.winnerIsA! ? config.playerAName : config.playerBName}',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: neonColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ),
             ),
-          ],
         ],
       ),
     );

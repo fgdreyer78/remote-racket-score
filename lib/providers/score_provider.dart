@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/score/scoring_engine.dart';
@@ -29,6 +31,14 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
   bool _lastScorerIsA;
   bool get lastScorerIsA => _lastScorerIsA;
 
+  /// Flag para saber se a partida já foi salva no histórico.
+  bool _matchSaved = false;
+  bool get matchSaved => _matchSaved;
+
+  /// Timer para salvar a partida com delay (autoSaveDelaySeconds).
+  Timer? _pendingSaveTimer;
+  Timer? get pendingSaveTimer => _pendingSaveTimer;
+
   GameConfig get _config =>
       _ref.read(gameConfigProvider).valueOrNull ?? const GameConfig();
 
@@ -41,6 +51,9 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
   }
 
   void _addPoint({required bool forTeamA}) {
+    // Não aceitar novos pontos após o término da partida.
+    if (state.matchOver) return;
+
     final config = _config;
     final prev = state;
 
@@ -65,11 +78,37 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
         .announceTransition(prev, state, config, ttsConfig);
 
     if (!prev.matchOver && state.matchOver) {
+      _startPendingSave(config);
+    }
+  }
+
+  /// Inicia o timer de save atrasado (autoSaveDelaySeconds).
+  /// Durante essa janela, o utilizador pode desfazer pontos.
+  void _startPendingSave(GameConfig config) {
+    _pendingSaveTimer?.cancel();
+    final delay = config.autoSaveDelaySeconds;
+    if (delay > 0) {
+      _pendingSaveTimer = Timer(Duration(seconds: delay), () {
+        _pendingSaveTimer = null;
+        if (mounted && state.matchOver && !_matchSaved) {
+          _saveMatch(config);
+        }
+      });
+    } else {
+      // Sem delay — salvar imediatamente.
       _saveMatch(config);
     }
   }
 
+  /// Cancela o save pendente (usado quando o utilizador desfaz o ponto vencedor).
+  void _cancelPendingSave() {
+    _pendingSaveTimer?.cancel();
+    _pendingSaveTimer = null;
+  }
+
   void _saveMatch(GameConfig config) {
+    if (_matchSaved) return;
+    _matchSaved = true;
     final finishedAt = DateTime.now();
     final record = MatchRecord(
       id: finishedAt.toIso8601String(),
@@ -88,6 +127,17 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
 
   void undo() {
     if (state.history.isEmpty) return;
+
+    // Se a partida acabou mas ainda não foi salva, permitir undo
+    // (o utilizador pode ter se enganado no último ponto).
+    if (state.matchOver && _matchSaved) return;
+
+    // Se a partida acabou e há save pendente, cancelar o save
+    // e reverter o estado.
+    if (state.matchOver && _pendingSaveTimer != null) {
+      _cancelPendingSave();
+    }
+
     if (_events.isNotEmpty) {
       _events.removeLast();
     }
@@ -95,6 +145,8 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
   }
 
   void reset() {
+    _cancelPendingSave();
+    _matchSaved = false;
     state = const ScoreState();
     _events.clear();
     _matchStart = DateTime.now();
