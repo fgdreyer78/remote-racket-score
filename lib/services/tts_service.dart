@@ -107,19 +107,20 @@ class TtsService {
       return;
     }
 
-    // 40 iguais: ambos com 3+ pontos e iguais
-    final isEqual = pa >= 3 && pb >= 3 && pa == pb;
+    // Placar empatado: ambos com o mesmo número de pontos → "X iguais"
+    if (pa == pb) {
+      final s = ttsConfig.pointWord(pa);
+      await _speak('$s ${ttsConfig.phrase('deuce')}', config);
+      return;
+    }
+
     final serverPoints = state.serverIsA ? pa : pb;
     final receiverPoints = state.serverIsA ? pb : pa;
 
     final s = ttsConfig.pointWord(serverPoints);
     final r = ttsConfig.pointWord(receiverPoints);
 
-    if (isEqual) {
-      await _speak('$s ${ttsConfig.phrase('deuce')}', config);
-    } else {
-      await _speak('$s $r', config);
-    }
+    await _speak('$s $r', config);
   }
 
   Future<void> speakGameAndSetScore(ScoreState newState,
@@ -137,9 +138,13 @@ class TtsService {
 
     // 2. Placar do set
     if (newGa == newGb) {
-      // Empate
+      // Empate — usar singular/game quando 1 a 1, plural/games caso contrário
+      final gameUnit = newGa == 1
+          ? ttsConfig.phrase('gameUnitSingular')
+          : ttsConfig.phrase('gamesUnit');
       await _speak(
-          '$ordinal ${ttsConfig.phrase('setTied')} $newGa a $newGb', config);
+          '$ordinal ${ttsConfig.phrase('setTied')} $newGa $gameUnit a $newGb',
+          config);
     } else {
       // Quem lidera (baseado no placar REAL de games)
       final leaderName =

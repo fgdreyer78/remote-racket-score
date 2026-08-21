@@ -14,6 +14,7 @@ class TtsDictionary {
       'setWinnerPrefix': 'Game e',
       'setTied': 'set empatado em',
       'leads': 'lidera por',
+      'gameUnitSingular': 'game',
       'gamesUnit': 'games a',
       'timeWarning': 'Táim',
       // Ordinais de set
@@ -41,6 +42,7 @@ class TtsDictionary {
       'setWinnerPrefix': 'Game and',
       'setTied': 'set tied at',
       'leads': 'leads',
+      'gameUnitSingular': 'game',
       'gamesUnit': 'games to',
       'timeWarning': 'Time',
       // Ordinais de set
@@ -114,6 +116,7 @@ class TtsDictionary {
 
   /// Lista de todas as chaves disponíveis para customização.
   static const List<String> customizableKeys = [
+    'gameUnitSingular',
     'game',
     'advantage',
     'deuce',
@@ -134,6 +137,7 @@ class TtsDictionary {
 
   /// Labels legíveis para cada chave (para exibição na tela de configuração).
   static const Map<String, String> keyLabels = {
+    'gameUnitSingular': 'Game unit (singular)',
     'game': 'Game',
     'advantage': 'Vantagem / Advantage',
     'deuce': '40 iguais / deuce',
