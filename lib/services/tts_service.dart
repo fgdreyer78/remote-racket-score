@@ -151,8 +151,11 @@ class TtsService {
           newGa > newGb ? config.playerAName : config.playerBName;
       final leaderGames = newGa > newGb ? newGa : newGb;
       final otherGames = newGa > newGb ? newGb : newGa;
+      final unit = leaderGames == 1
+          ? ttsConfig.phrase('gameUnitSingular')
+          : ttsConfig.phrase('gamesUnit');
       await _speak(
-          '$leaderName ${ttsConfig.phrase('leads')} $leaderGames ${ttsConfig.phrase('gamesUnit')} $otherGames',
+          '$leaderName ${ttsConfig.phrase('leads')} $leaderGames $unit $otherGames',
           config);
     }
   }
