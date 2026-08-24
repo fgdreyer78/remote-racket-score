@@ -2,6 +2,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/tts_dictionary.dart';
 import '../models/game_config.dart';
 import '../models/score_state.dart';
 import '../providers/tts_config_provider.dart';
@@ -366,6 +367,41 @@ class TtsService {
     await _tts.speak(text);
   }
 
+  /// Reproduz um preview da voz com frases simuladas de placar.
+  Future<void> speakVoicePreview(String languageCode,
+      {String? voiceName}) async {
+    await _tts.stop();
+    await _tts.setLanguage(languageCode);
+    if (voiceName != null) {
+      await setVoiceByName(voiceName, languageCode);
+    } else {
+      await _trySetMaleVoice(languageCode);
+    }
+
+    // Constrói frases de exemplo usando o dicionário
+    final fifteen = TtsDictionary.get('fifteen', languageCode);
+    final forty = TtsDictionary.get('forty', languageCode);
+    final advantage = TtsDictionary.get('advantage', languageCode);
+    final leads = TtsDictionary.get('leads', languageCode);
+    final gamesUnit = TtsDictionary.get('gamesUnit', languageCode);
+    final matchWinner = TtsDictionary.get('matchWinner', languageCode);
+    const playerName = 'Pedro Paulo';
+
+    final phrases = [
+      '$fifteen $forty',
+      '$advantage $playerName',
+      '$playerName $leads 2 $gamesUnit 1',
+      '$matchWinner $playerName',
+    ];
+
+    for (final phrase in phrases) {
+      await _tts.speak(phrase);
+      // Espera terminar de falar antes da próxima frase
+      await Future.delayed(const Duration(milliseconds: 800));
+    }
+  }
+
+  /// Para qualquer reprodução em andamento.
   Future<void> stop() async {
     await _tts.stop();
   }

@@ -20,6 +20,7 @@ class _LanguageSettingsScreenState
     extends ConsumerState<LanguageSettingsScreen> {
   List<Map<String, String>> _availableVoices = [];
   bool _loadingVoices = false;
+  bool _previewPlaying = false;
 
   @override
   void initState() {
@@ -142,39 +143,35 @@ class _LanguageSettingsScreenState
             )
           else ...[
             // Opção padrão (automática)
-            RadioListTile<String?>(
-              value: null,
-              groupValue: ttsConfig.voiceName,
+            _VoiceTile(
+              voiceName: null,
+              displayName: 'Padrão (automática)',
+              gender: '',
+              isSelected: ttsConfig.voiceName == null,
+              isPreviewPlaying: _previewPlaying && ttsConfig.voiceName == null,
               activeColor: neonColor,
-              title: const Text('Padrão (automática)',
-                  style: TextStyle(color: AppTheme.onSurface)),
-              subtitle: const Text('Seleciona voz masculina automaticamente',
-                  style: TextStyle(color: Colors.white54, fontSize: 12)),
-              onChanged: (v) {
+              onSelect: () {
                 ref.read(ttsConfigProvider.notifier).setVoice(null);
                 _applyVoice(null);
               },
+              onPreview: () => _previewVoice(null),
             ),
             if (_availableVoices.isNotEmpty)
               const Divider(color: Colors.white12, height: 1),
             for (final voice in _availableVoices)
-              RadioListTile<String?>(
-                value: voice['name'],
-                groupValue: ttsConfig.voiceName,
+              _VoiceTile(
+                voiceName: voice['name'],
+                displayName: _voiceDisplayName(voice),
+                gender: voice['gender']!,
+                isSelected: ttsConfig.voiceName == voice['name'],
+                isPreviewPlaying:
+                    _previewPlaying && ttsConfig.voiceName == voice['name'],
                 activeColor: neonColor,
-                title: Text(
-                  _voiceDisplayName(voice),
-                  style: const TextStyle(color: AppTheme.onSurface),
-                ),
-                subtitle: voice['gender']!.isNotEmpty
-                    ? Text(voice['gender']!,
-                        style: const TextStyle(
-                            color: Colors.white54, fontSize: 12))
-                    : null,
-                onChanged: (v) {
-                  ref.read(ttsConfigProvider.notifier).setVoice(v);
-                  _applyVoice(v);
+                onSelect: () {
+                  ref.read(ttsConfigProvider.notifier).setVoice(voice['name']);
+                  _applyVoice(voice['name']);
                 },
+                onPreview: () => _previewVoice(voice['name']),
               ),
             if (_availableVoices.isEmpty && !_loadingVoices)
               const Padding(
@@ -244,6 +241,20 @@ class _LanguageSettingsScreenState
     final ttsConfig = ref.read(ttsConfigProvider);
     final tts = ref.read(ttsServiceProvider);
     await tts.setVoiceByName(voiceName, ttsConfig.languageCode);
+  }
+
+  Future<void> _previewVoice(String? voiceName) async {
+    if (_previewPlaying) {
+      final tts = ref.read(ttsServiceProvider);
+      await tts.stop();
+      if (mounted) setState(() => _previewPlaying = false);
+      return;
+    }
+    final ttsConfig = ref.read(ttsConfigProvider);
+    final tts = ref.read(ttsServiceProvider);
+    if (mounted) setState(() => _previewPlaying = true);
+    await tts.speakVoicePreview(ttsConfig.languageCode, voiceName: voiceName);
+    if (mounted) setState(() => _previewPlaying = false);
   }
 
   Widget _buildHeader(String title, String subtitle, Color neonColor) {
@@ -387,5 +398,58 @@ class _PhraseEditTileState extends State<_PhraseEditTile> {
       notifier.setCustomPhrase(widget.phraseKey, value);
     }
     setState(() => _isEditing = false);
+  }
+}
+
+/// Tile de seleção de voz com botão de preview.
+class _VoiceTile extends StatelessWidget {
+  const _VoiceTile({
+    required this.voiceName,
+    required this.displayName,
+    required this.gender,
+    required this.isSelected,
+    required this.isPreviewPlaying,
+    required this.activeColor,
+    required this.onSelect,
+    required this.onPreview,
+  });
+
+  final String? voiceName;
+  final String displayName;
+  final String gender;
+  final bool isSelected;
+  final bool isPreviewPlaying;
+  final Color activeColor;
+  final VoidCallback onSelect;
+  final VoidCallback onPreview;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Radio<String?>(
+        value: voiceName,
+        groupValue: isSelected ? voiceName : null,
+        activeColor: activeColor,
+        onChanged: (_) => onSelect(),
+      ),
+      title: Text(
+        displayName,
+        style: const TextStyle(color: AppTheme.onSurface),
+      ),
+      subtitle: gender.isNotEmpty
+          ? Text(gender,
+              style: const TextStyle(color: Colors.white54, fontSize: 12))
+          : null,
+      trailing: IconButton(
+        icon: Icon(
+          isPreviewPlaying ? Icons.stop_circle : Icons.play_circle_outline,
+          color: activeColor,
+          size: 28,
+        ),
+        tooltip: 'Ouvir exemplo',
+        onPressed: onPreview,
+      ),
+      onTap: onSelect,
+    );
   }
 }
