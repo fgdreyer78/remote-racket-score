@@ -461,10 +461,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         icon: const Icon(Icons.delete,
                             color: AppTheme.error, size: 20),
                         onPressed: () async {
-                          await ref
-                              .read(gamePresetsProvider.notifier)
-                              .deletePreset(index);
-                          if (context.mounted) Navigator.of(context).pop();
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (dctx) => AlertDialog(
+                              backgroundColor: AppTheme.surfaceVariant,
+                              title: const Text(
+                                'Confirmar exclusão',
+                                style: TextStyle(
+                                    color: AppTheme.primary,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              content: Text(
+                                'Deseja deletar o preset "${preset.name}"?',
+                                style:
+                                    const TextStyle(color: AppTheme.onSurface),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(dctx).pop(false),
+                                  child: const Text('Cancelar',
+                                      style:
+                                          TextStyle(color: AppTheme.onSurface)),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.of(dctx).pop(true),
+                                  child: const Text('Deletar',
+                                      style: TextStyle(color: AppTheme.error)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed == true) {
+                            await ref
+                                .read(gamePresetsProvider.notifier)
+                                .deletePreset(index);
+                            if (context.mounted) Navigator.of(context).pop();
+                          }
                         },
                       ),
                     ],

@@ -621,7 +621,39 @@ class _ManualMappingTile extends StatelessWidget {
                     IconButton(
                         visualDensity: VisualDensity.compact,
                         icon: const Icon(Icons.delete, color: neon, size: 20),
-                        onPressed: onClear),
+                        onPressed: () async {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (dctx) => AlertDialog(
+                              backgroundColor: AppTheme.surfaceVariant,
+                              title: const Text(
+                                'Confirmar exclusão',
+                                style: TextStyle(
+                                    color: AppTheme.primary,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              content: const Text(
+                                'Deseja remover este mapeamento?',
+                                style: TextStyle(color: AppTheme.onSurface),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(dctx).pop(false),
+                                  child: const Text('Cancelar',
+                                      style:
+                                          TextStyle(color: AppTheme.onSurface)),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.of(dctx).pop(true),
+                                  child: const Text('Deletar',
+                                      style: TextStyle(color: AppTheme.error)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed == true) onClear();
+                        }),
                   IconButton(
                       visualDensity: VisualDensity.compact,
                       icon: const Icon(Icons.edit, color: neon, size: 20),

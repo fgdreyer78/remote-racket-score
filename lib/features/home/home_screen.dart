@@ -224,43 +224,39 @@ class _OngoingMatchesSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 12),
-        if (hasActiveInMemory)
-          _MenuButton(
-            icon: Icons.play_circle,
-            label: 'Continuar Partida em Andamento',
-            color: neonColor,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ScoreScreen()),
-            ),
-          )
-        else if (ongoing.isNotEmpty)
-          _MenuButton(
-            icon: Icons.play_circle,
-            label: 'Partidas em Andamento',
-            color: neonColor,
-            onTap: () => _showOngoingMatches(context, ref, ongoing),
-          ),
-        if (ongoing.length > 1 && hasActiveInMemory)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: GestureDetector(
-              onTap: () => _showOngoingMatches(context, ref, ongoing),
-              child: Text(
-                '${ongoing.length} partida(s) salva(s) — toque para ver todas',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: neonColor.withValues(alpha: 0.7),
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ),
+        _MenuButton(
+          icon: Icons.play_circle,
+          label: 'Partidas em Andamento',
+          color: neonColor,
+          onTap: () {
+            // Inclui a partida ativa em memória + partidas salvas
+            final allMatches = <_OngoingEntry>[];
+            if (hasActiveInMemory) {
+              allMatches.add(_OngoingEntry(
+                label:
+                    '${activeScore.pointsA > 0 || activeScore.pointsB > 0 ? "Em jogo" : "Iniciada"} '
+                    '(partida ativa)',
+                summary: '',
+                isActive: true,
+              ));
+            }
+            for (final m in ongoing) {
+              allMatches.add(_OngoingEntry(
+                label: '${m.playerAName} vs ${m.playerBName}',
+                summary: m.scoreSummary,
+                isActive: false,
+                match: m,
+              ));
+            }
+            _showOngoingMatches(context, ref, allMatches);
+          },
+        ),
       ],
     );
   }
 
   void _showOngoingMatches(
-      BuildContext context, WidgetRef ref, List<OngoingMatch> matches) {
+      BuildContext context, WidgetRef ref, List<_OngoingEntry> entries) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.surfaceVariant,
@@ -285,49 +281,101 @@ class _OngoingMatchesSection extends ConsumerWidget {
             Flexible(
               child: ListView.builder(
                 shrinkWrap: true,
-                itemCount: matches.length,
+                itemCount: entries.length,
                 itemBuilder: (ctx, index) {
-                  final match = matches[index];
+                  final entry = entries[index];
                   return ListTile(
-                    leading: const Icon(Icons.sports_tennis,
-                        color: AppTheme.primary),
+                    leading: Icon(
+                      entry.isActive ? Icons.play_circle : Icons.sports_tennis,
+                      color: entry.isActive
+                          ? const Color(0xFF80FF80)
+                          : AppTheme.primary,
+                    ),
                     title: Text(
-                      '${match.playerAName} vs ${match.playerBName}',
+                      entry.label,
                       style: const TextStyle(color: AppTheme.onSurface),
                     ),
-                    subtitle: Text(
-                      match.scoreSummary,
-                      style:
-                          const TextStyle(color: Colors.white54, fontSize: 12),
-                    ),
+                    subtitle: entry.summary.isNotEmpty
+                        ? Text(
+                            entry.summary,
+                            style: const TextStyle(
+                                color: Colors.white54, fontSize: 12),
+                          )
+                        : null,
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
                           icon: const Icon(Icons.play_arrow,
                               color: Color(0xFF80FF80)),
-                          tooltip: 'Retomar',
+                          tooltip: entry.isActive ? 'Continuar' : 'Retomar',
                           onPressed: () async {
                             Navigator.of(ctx).pop();
-                            await ref
-                                .read(ongoingMatchesProvider.notifier)
-                                .restoreMatch(match);
-                            if (context.mounted) {
-                              Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (_) => const ScoreScreen()));
+                            if (entry.isActive) {
+                              // Partida ativa em memória — vai direto para o placar
+                              if (context.mounted) {
+                                Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => const ScoreScreen()));
+                              }
+                            } else if (entry.match != null) {
+                              // Partida salva — restaura
+                              await ref
+                                  .read(ongoingMatchesProvider.notifier)
+                                  .restoreMatch(entry.match!);
+                              if (context.mounted) {
+                                Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => const ScoreScreen()));
+                              }
                             }
                           },
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: AppTheme.error),
-                          tooltip: 'Deletar',
-                          onPressed: () async {
-                            await ref
-                                .read(ongoingMatchesProvider.notifier)
-                                .deleteMatch(match.id);
-                            if (ctx.mounted) Navigator.of(ctx).pop();
-                          },
-                        ),
+                        if (!entry.isActive)
+                          IconButton(
+                            icon:
+                                const Icon(Icons.delete, color: AppTheme.error),
+                            tooltip: 'Deletar',
+                            onPressed: () async {
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (dctx) => AlertDialog(
+                                  backgroundColor: AppTheme.surfaceVariant,
+                                  title: const Text(
+                                    'Confirmar exclusão',
+                                    style: TextStyle(
+                                        color: AppTheme.primary,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  content: Text(
+                                    'Deseja deletar a partida ${entry.label}?',
+                                    style: const TextStyle(
+                                        color: AppTheme.onSurface),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(dctx).pop(false),
+                                      child: const Text('Cancelar',
+                                          style: TextStyle(
+                                              color: AppTheme.onSurface)),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(dctx).pop(true),
+                                      child: const Text('Deletar',
+                                          style:
+                                              TextStyle(color: AppTheme.error)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirmed == true) {
+                                await ref
+                                    .read(ongoingMatchesProvider.notifier)
+                                    .deleteMatch(entry.match!.id);
+                                if (ctx.mounted) Navigator.of(ctx).pop();
+                              }
+                            },
+                          ),
                       ],
                     ),
                   );
@@ -340,6 +388,20 @@ class _OngoingMatchesSection extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _OngoingEntry {
+  _OngoingEntry({
+    required this.label,
+    required this.summary,
+    required this.isActive,
+    this.match,
+  });
+
+  final String label;
+  final String summary;
+  final bool isActive;
+  final OngoingMatch? match;
 }
 
 class _ConfigScreen extends ConsumerWidget {
