@@ -762,6 +762,22 @@ class _ScoreContent extends StatelessWidget {
       }
     }
 
+    // Calcula tamanhos dinamicamente com base no espaço disponível da tela.
+    // Os números usam 90% da largura (10% de respiro) e os nomes 25% dos números.
+    final screenW = MediaQuery.of(context).size.width;
+    final numColumns = hasPoints ? 2 : 1;
+
+    double baseSize;
+    double nameSize;
+    double spacing;
+
+    // Usa a mesma fórmula para ambas orientações: 90% da largura da tela
+    // dividido pelo número de colunas de números. O FittedBox cuida de
+    // escalar tudo proporcionalmente para caber no espaço disponível.
+    baseSize = (screenW * 0.9) / numColumns;
+    nameSize = baseSize * 0.25;
+    spacing = baseSize * 0.05;
+
     Widget content;
     if (isPortrait) {
       content = Column(
@@ -800,10 +816,13 @@ class _ScoreContent extends StatelessWidget {
                 grayColor: flashingIsA == true && flashState
                     ? AppTheme.surface
                     : grayColor,
+                baseSize: baseSize,
+                nameSize: nameSize,
+                spacing: spacing,
               ),
             ),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: spacing * 3.2),
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: onPointB,
@@ -830,6 +849,9 @@ class _ScoreContent extends StatelessWidget {
                 grayColor: flashingIsA == false && flashState
                     ? AppTheme.surface
                     : grayColor,
+                baseSize: baseSize,
+                nameSize: nameSize,
+                spacing: spacing,
               ),
             ),
           ),
@@ -868,10 +890,13 @@ class _ScoreContent extends StatelessWidget {
                     grayColor: flashingIsA == true && flashState
                         ? AppTheme.surface
                         : grayColor,
+                    baseSize: baseSize,
+                    nameSize: nameSize,
+                    spacing: spacing,
                   ),
                 ),
               ),
-              const SizedBox(height: 80),
+              SizedBox(height: spacing * 8),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: onPointB,
@@ -898,6 +923,9 @@ class _ScoreContent extends StatelessWidget {
                     grayColor: flashingIsA == false && flashState
                         ? AppTheme.surface
                         : grayColor,
+                    baseSize: baseSize,
+                    nameSize: nameSize,
+                    spacing: spacing,
                   ),
                 ),
               ),
@@ -965,7 +993,10 @@ class _ScoreContent extends StatelessWidget {
     required Color neonColor,
     required Color whiteColor,
     required Color grayColor,
+    required double baseSize,
+    required double spacing,
   }) {
+    final setSize = baseSize * 0.5;
     // Se houve tiebreak (um dos valores > 0), aplica formatação especial
     if (tbPtsA > 0 || tbPtsB > 0) {
       // Quem ganhou mais games é o vencedor do set
@@ -975,7 +1006,7 @@ class _ScoreContent extends StatelessWidget {
       final loserDisplay = aWon ? gamesB : gamesA;
 
       return SizedBox(
-        width: 200,
+        width: setSize * 1.3,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -983,20 +1014,20 @@ class _ScoreContent extends StatelessWidget {
             // Vencedor: sempre 7
             Text('$winnerGames',
                 style: TextStyle(
-                    fontSize: 150,
+                    fontSize: setSize,
                     color: grayColor,
                     fontWeight: FontWeight.bold)),
-            const SizedBox(width: 8),
+            SizedBox(width: spacing * 0.5),
             // Perdedor: 6^pontos
             Padding(
-              padding: const EdgeInsets.only(top: 20),
+              padding: EdgeInsets.only(top: setSize * 0.13),
               child: Text.rich(
                 TextSpan(
                   children: [
                     TextSpan(
                       text: '$loserDisplay',
                       style: TextStyle(
-                          fontSize: 150,
+                          fontSize: setSize,
                           color: grayColor,
                           fontWeight: FontWeight.bold),
                     ),
@@ -1004,7 +1035,7 @@ class _ScoreContent extends StatelessWidget {
                       TextSpan(
                         text: '$loserTbPts',
                         style: TextStyle(
-                            fontSize: 70,
+                            fontSize: setSize * 0.47,
                             color: grayColor,
                             fontWeight: FontWeight.bold),
                       ),
@@ -1019,12 +1050,12 @@ class _ScoreContent extends StatelessWidget {
 
     // Sem tiebreak: mostra os games normalmente
     return SizedBox(
-      width: 160,
+      width: setSize * 1.1,
       child: Center(
         child: Text(
           '$gamesA',
           style: TextStyle(
-              fontSize: 150, color: grayColor, fontWeight: FontWeight.bold),
+              fontSize: setSize, color: grayColor, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -1044,18 +1075,23 @@ class _ScoreContent extends StatelessWidget {
     required Color neonColor,
     required Color whiteColor,
     required Color grayColor,
+    required double baseSize,
+    required double nameSize,
+    required double spacing,
   }) {
     final nameRow = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Opacity(
           opacity: isServer ? 1.0 : 0.0,
-          child: Icon(Icons.circle, color: neonColor, size: 48),
+          child: Icon(Icons.circle, color: neonColor, size: nameSize * 0.4),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: spacing),
         Text(name,
             style: TextStyle(
-                fontSize: 50, fontWeight: FontWeight.bold, color: whiteColor)),
+                fontSize: nameSize,
+                fontWeight: FontWeight.bold,
+                color: whiteColor)),
       ],
     );
 
@@ -1072,30 +1108,30 @@ class _ScoreContent extends StatelessWidget {
               neonColor: neonColor,
               whiteColor: whiteColor,
               grayColor: grayColor,
+              baseSize: baseSize,
+              spacing: spacing,
             ),
-            const SizedBox(width: 24),
+            SizedBox(width: spacing * 1.5),
           ],
         ],
         if (hasGames) ...[
-          SizedBox(
-              width: 160,
-              child: Center(
-                  child: Text('$games',
-                      style: TextStyle(
-                          fontSize: 150,
-                          color: whiteColor,
-                          fontWeight: FontWeight.bold)))),
-          if (hasPoints) const SizedBox(width: 24),
+          Center(
+            child: Text('$games',
+                style: TextStyle(
+                    fontSize: baseSize,
+                    color: whiteColor,
+                    fontWeight: FontWeight.bold)),
+          ),
+          if (hasPoints) SizedBox(width: spacing * 1.5),
         ],
         if (hasPoints)
-          SizedBox(
-              width: 220,
-              child: Center(
-                  child: Text(points,
-                      style: TextStyle(
-                          fontSize: 150,
-                          color: neonColor,
-                          fontWeight: FontWeight.bold)))),
+          Center(
+            child: Text(points,
+                style: TextStyle(
+                    fontSize: baseSize,
+                    color: neonColor,
+                    fontWeight: FontWeight.bold)),
+          ),
       ],
     );
 
@@ -1104,16 +1140,18 @@ class _ScoreContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           nameRow,
-          const SizedBox(height: 16),
-          Padding(padding: const EdgeInsets.only(left: 64), child: scoresRow),
+          SizedBox(height: spacing),
+          Padding(
+              padding: EdgeInsets.only(left: nameSize * 1.28),
+              child: scoresRow),
         ],
       );
     } else {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(width: 500, child: nameRow),
-          const SizedBox(width: 48),
+          SizedBox(width: baseSize * 2.5, child: nameRow),
+          SizedBox(width: spacing * 3),
           scoresRow,
         ],
       );
