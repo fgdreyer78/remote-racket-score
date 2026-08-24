@@ -23,9 +23,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late int _tiebreakPoints;
   late int _tiebreakDifference;
   late int _finalSetTiebreakPoints;
+  late int _finalSetTiebreakDifference;
   late bool _useFinalSetTiebreak;
   late bool _withAdvantage;
-  late String _ttsLanguage;
   late int _serveClockSeconds;
   late int _breakBetweenOddGamesSeconds;
   late int _breakBetweenEvenGamesSeconds;
@@ -43,6 +43,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // Lock settings during match
   late bool _lockSettingsDuringMatch;
 
+  // Preset overrides (-1 = usar padrão, >= 0 = valor específico)
+  late int _presetTtsLanguageIndex;
+  late int _presetLayoutModeIndex;
+
   @override
   void initState() {
     super.initState();
@@ -53,10 +57,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _tiebreakAt = 6;
     _tiebreakPoints = 7;
     _tiebreakDifference = 2;
-    _finalSetTiebreakPoints = 7;
+    _finalSetTiebreakPoints = 10;
+    _finalSetTiebreakDifference = 2;
     _useFinalSetTiebreak = true;
     _withAdvantage = true;
-    _ttsLanguage = 'pt-BR';
     _serveClockSeconds = 0;
     _breakBetweenOddGamesSeconds = 0;
     _breakBetweenEvenGamesSeconds = 0;
@@ -69,6 +73,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _autoSaveDelaySeconds = 10;
     _layoutMode = 0;
     _lockSettingsDuringMatch = false;
+    _presetTtsLanguageIndex = -1;
+    _presetLayoutModeIndex = -1;
   }
 
   bool _formInitialized = false;
@@ -77,6 +83,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void _initFromConfig(GameConfig? config) {
     if (config == null || _formInitialized) return;
     _formInitialized = true;
+
     _sportController.text = config.sportName;
     setState(() {
       _gamesToWinSet = config.gamesToWinSet;
@@ -86,9 +93,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _tiebreakPoints = config.tiebreakPoints;
       _tiebreakDifference = config.tiebreakDifference;
       _finalSetTiebreakPoints = config.finalSetTiebreakPoints;
+      _finalSetTiebreakDifference = config.finalSetTiebreakDifference;
       _useFinalSetTiebreak = config.useFinalSetTiebreak;
       _withAdvantage = config.withAdvantage;
-      _ttsLanguage = config.ttsLanguage;
       _serveClockSeconds = config.serveClockSeconds;
       _breakBetweenOddGamesSeconds = config.breakBetweenOddGamesSeconds;
       _breakBetweenEvenGamesSeconds = config.breakBetweenEvenGamesSeconds;
@@ -166,6 +173,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 (v) => _minGameDifference = v),
             _numberField(
                 'Número de sets (melhor de)', _maxSets, (v) => _maxSets = v),
+            SwitchListTile(
+              title: const Text('Sem vantagem (No-AD)',
+                  style: TextStyle(color: AppTheme.onSurface)),
+              subtitle: const Text(
+                  'Game termina em 40-40 sem vantagem — próximo ponto fecha',
+                  style: TextStyle(color: Colors.white54, fontSize: 12)),
+              value: !_withAdvantage,
+              onChanged: (v) => setState(() => _withAdvantage = !v),
+              activeColor: AppTheme.primary,
+            ),
             const SizedBox(height: 16),
 
             // --- TIEBREAK ---
@@ -187,6 +204,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onChanged: (v) => setState(() => _useFinalSetTiebreak = v),
               activeColor: AppTheme.primary,
             ),
+            if (_useFinalSetTiebreak) ...[
+              _numberField('Pontos para ganhar tiebreak decisivo',
+                  _finalSetTiebreakPoints, (v) => _finalSetTiebreakPoints = v),
+              _numberField(
+                  'Diferença para fechar tiebreak decisivo',
+                  _finalSetTiebreakDifference,
+                  (v) => _finalSetTiebreakDifference = v),
+            ],
             const SizedBox(height: 24),
 
             // --- CRONÔMETRO E TEMPOS ---
@@ -241,38 +266,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   (v) => _pointFlashDurationMs = v,
                   min: 100),
             ],
-            const SizedBox(height: 24),
-
-            // --- IDIOMA DE FALA ---
-            const Text('Idioma de Fala',
-                style: TextStyle(
-                    color: AppTheme.primary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              value: _ttsLanguage,
-              dropdownColor: AppTheme.surfaceVariant,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(
-                  value: 'pt-BR',
-                  child: Text('Português (Brasil)'),
-                ),
-                DropdownMenuItem(
-                  value: 'en-US',
-                  child: Text('English (US)'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _ttsLanguage = value;
-                });
-              },
-            ),
             const SizedBox(height: 24),
 
             // --- AUTO-SAVE ---
@@ -332,6 +325,76 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               value: _lockSettingsDuringMatch,
               onChanged: (v) => setState(() => _lockSettingsDuringMatch = v),
               activeColor: AppTheme.primary,
+            ),
+
+            const SizedBox(height: 24),
+
+            // --- OPÇÕES DO PRESET ---
+            const Text('Opções do Preset',
+                style: TextStyle(
+                    color: AppTheme.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Se definido no preset, sobrescreve a configuração global.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ),
+            ListTile(
+              title: const Text('Idioma de Fala no Preset',
+                  style: TextStyle(color: AppTheme.onSurface)),
+              trailing: DropdownButton<int>(
+                value: _presetTtsLanguageIndex,
+                dropdownColor: AppTheme.surfaceVariant,
+                underline: const SizedBox.shrink(),
+                items: const [
+                  DropdownMenuItem(
+                      value: -1,
+                      child: Text('Usar padrão',
+                          style: TextStyle(color: AppTheme.onSurface))),
+                  DropdownMenuItem(
+                      value: 0,
+                      child: Text('Português',
+                          style: TextStyle(color: AppTheme.onSurface))),
+                  DropdownMenuItem(
+                      value: 1,
+                      child: Text('English',
+                          style: TextStyle(color: AppTheme.onSurface))),
+                ],
+                onChanged: (v) {
+                  if (v == null) return;
+                  setState(() => _presetTtsLanguageIndex = v);
+                },
+              ),
+            ),
+            ListTile(
+              title: const Text('Layout do Placar no Preset',
+                  style: TextStyle(color: AppTheme.onSurface)),
+              trailing: DropdownButton<int>(
+                value: _presetLayoutModeIndex,
+                dropdownColor: AppTheme.surfaceVariant,
+                underline: const SizedBox.shrink(),
+                items: const [
+                  DropdownMenuItem(
+                      value: -1,
+                      child: Text('Usar padrão',
+                          style: TextStyle(color: AppTheme.onSurface))),
+                  DropdownMenuItem(
+                      value: 0,
+                      child: Text('Padrão',
+                          style: TextStyle(color: AppTheme.onSurface))),
+                  DropdownMenuItem(
+                      value: 1,
+                      child: Text('Paisagem dividido',
+                          style: TextStyle(color: AppTheme.onSurface))),
+                ],
+                onChanged: (v) {
+                  if (v == null) return;
+                  setState(() => _presetLayoutModeIndex = v);
+                },
+              ),
             ),
 
             const SizedBox(height: 48),
@@ -417,10 +480,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (selected == null) return;
     final preset = presets[selected];
     await ref.read(gamePresetsProvider.notifier).applyPreset(preset);
-    _loadPresetIntoForm(preset.config);
+    _loadPresetIntoForm(preset);
   }
 
-  void _loadPresetIntoForm(GameConfig config) {
+  void _loadPresetIntoForm(dynamic preset) {
+    final config = preset.config;
     _sportController.text = config.sportName;
     setState(() {
       _gamesToWinSet = config.gamesToWinSet;
@@ -430,9 +494,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _tiebreakPoints = config.tiebreakPoints;
       _tiebreakDifference = config.tiebreakDifference;
       _finalSetTiebreakPoints = config.finalSetTiebreakPoints;
+      _finalSetTiebreakDifference = config.finalSetTiebreakDifference;
       _useFinalSetTiebreak = config.useFinalSetTiebreak;
       _withAdvantage = config.withAdvantage;
-      _ttsLanguage = config.ttsLanguage;
       _serveClockSeconds = config.serveClockSeconds;
       _breakBetweenOddGamesSeconds = config.breakBetweenOddGamesSeconds;
       _breakBetweenEvenGamesSeconds = config.breakBetweenEvenGamesSeconds;
@@ -445,6 +509,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _autoSaveDelaySeconds = config.autoSaveDelaySeconds;
       _layoutMode = config.layoutMode;
       _lockSettingsDuringMatch = config.lockSettingsDuringMatch;
+      // Preset overrides
+      _presetTtsLanguageIndex = preset.overrideTtsLanguageIndex ?? -1;
+      _presetLayoutModeIndex = preset.overrideLayoutModeIndex ?? -1;
       _formKey++;
     });
   }
@@ -478,11 +545,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  /// Converte índice do dropdown de idioma TTS para código de idioma.
+  String? _ttsLanguageCodeFromIndex(int index) {
+    switch (index) {
+      case 0:
+        return 'pt-BR';
+      case 1:
+        return 'en-US';
+      default:
+        return null;
+    }
+  }
+
   void _save() {
     final name = _sportController.text.trim().isEmpty
         ? 'Configuração da partida'
         : _sportController.text.trim();
-    // Presets NÃO incluem nomes de jogadores
     final config = GameConfig(
       sportName: name,
       gamesToWinSet: _gamesToWinSet,
@@ -492,11 +570,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       tiebreakPoints: _tiebreakPoints,
       tiebreakDifference: _tiebreakDifference,
       finalSetTiebreakPoints: _finalSetTiebreakPoints,
+      finalSetTiebreakDifference: _finalSetTiebreakDifference,
       useFinalSetTiebreak: _useFinalSetTiebreak,
       withAdvantage: _withAdvantage,
       miniMatchGames: false,
       miniMatchGamesCount: 3,
-      ttsLanguage: _ttsLanguage,
       serveClockSeconds: _serveClockSeconds,
       breakBetweenOddGamesSeconds: _breakBetweenOddGamesSeconds,
       breakBetweenEvenGamesSeconds: _breakBetweenEvenGamesSeconds,
@@ -511,7 +589,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       lockSettingsDuringMatch: _lockSettingsDuringMatch,
     );
     ref.read(gameConfigProvider.notifier).updateConfig(config);
-    ref.read(gamePresetsProvider.notifier).savePreset(name, config);
+
+    // Preset overrides
+    final overrideTtsCode = _ttsLanguageCodeFromIndex(_presetTtsLanguageIndex);
+    final overrideLayout =
+        _presetLayoutModeIndex >= 0 ? _presetLayoutModeIndex : null;
+
+    ref.read(gamePresetsProvider.notifier).savePreset(
+          name,
+          config,
+          overrideTtsLanguage: overrideTtsCode,
+          overrideLayoutMode: overrideLayout,
+        );
     if (mounted) Navigator.of(context).pop();
   }
 }

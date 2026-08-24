@@ -212,8 +212,9 @@ class TtsService {
     await _speak(ttsConfig.phrase('timeWarning'), config);
   }
 
-  Future<void> speakCoinToss(String text, GameConfig config) async {
-    await _ensureLanguage(config.ttsLanguage);
+  Future<void> speakCoinToss(
+      String text, GameConfig config, TtsConfig ttsConfig) async {
+    await _ensureLanguage(ttsConfig.languageCode);
     await _speak(text, config);
   }
 

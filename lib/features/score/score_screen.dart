@@ -544,17 +544,20 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     ref.read(scoreStateProvider.notifier).setServer(serveIsA);
 
     final tts = ref.read(ttsServiceProvider);
-    final language = config.ttsLanguage;
+    final ttsConfig = ref.read(ttsConfigProvider);
+    final language = ttsConfig.languageCode;
     if (language == 'pt-BR') {
       final choiceText = choice == 'serve' ? 'sacar' : 'receber';
       await tts.speakCoinToss(
           '$winnerName ganhou o sorteio e escolheu $choiceText primeiro.',
-          config);
+          config,
+          ttsConfig);
     } else {
       final choiceText = choice == 'serve' ? 'serve' : 'receive';
       await tts.speakCoinToss(
           '$winnerName won the coin toss and chose to $choiceText first.',
-          config);
+          config,
+          ttsConfig);
     }
   }
 }

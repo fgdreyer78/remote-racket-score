@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_config.dart';
 import '../models/match_preset.dart';
 import 'game_config_provider.dart';
+import 'tts_config_provider.dart';
 
 const _presetsKey = 'game_presets';
 
@@ -56,14 +57,22 @@ class GamePresetsNotifier extends StateNotifier<AsyncValue<List<MatchPreset>>> {
     }
   }
 
-  Future<void> savePreset(String name, GameConfig config) async {
+  Future<void> savePreset(
+    String name,
+    GameConfig config, {
+    String? overrideTtsLanguage,
+    int? overrideLayoutMode,
+  }) async {
     final current = state.valueOrNull ?? <MatchPreset>[];
     final id = name.trim().toLowerCase();
     final existingIndex = current.indexWhere((p) => p.id == id);
     final preset = MatchPreset(
-        id: id,
-        name: name.trim().isEmpty ? 'Configuração' : name.trim(),
-        config: config);
+      id: id,
+      name: name.trim().isEmpty ? 'Configuração' : name.trim(),
+      config: config,
+      overrideTtsLanguage: overrideTtsLanguage,
+      overrideLayoutMode: overrideLayoutMode,
+    );
 
     List<MatchPreset> updated;
     if (existingIndex >= 0) {
@@ -87,6 +96,21 @@ class GamePresetsNotifier extends StateNotifier<AsyncValue<List<MatchPreset>>> {
   }
 
   Future<void> applyPreset(MatchPreset preset) async {
-    _ref.read(gameConfigProvider.notifier).updateConfig(preset.config);
+    // Aplicar config base
+    var config = preset.config;
+
+    // Aplicar override de layout se definido no preset
+    if (preset.overrideLayoutMode != null) {
+      config = config.copyWith(layoutMode: preset.overrideLayoutMode);
+    }
+
+    _ref.read(gameConfigProvider.notifier).updateConfig(config);
+
+    // Aplicar override de idioma de fala se definido no preset
+    if (preset.overrideTtsLanguage != null) {
+      _ref
+          .read(ttsConfigProvider.notifier)
+          .setLanguage(preset.overrideTtsLanguage!);
+    }
   }
 }

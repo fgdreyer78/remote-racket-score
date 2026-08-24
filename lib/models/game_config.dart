@@ -10,7 +10,8 @@ class GameConfig {
     this.tiebreakAt = 6,
     this.tiebreakPoints = 7,
     this.tiebreakDifference = 2,
-    this.finalSetTiebreakPoints = 7,
+    this.finalSetTiebreakPoints = 10,
+    this.finalSetTiebreakDifference = 2,
     this.useFinalSetTiebreak = true,
     this.withAdvantage = true,
     this.miniMatchGames = false,
@@ -40,6 +41,7 @@ class GameConfig {
   final int tiebreakPoints;
   final int tiebreakDifference;
   final int finalSetTiebreakPoints;
+  final int finalSetTiebreakDifference;
   final bool useFinalSetTiebreak;
   final bool withAdvantage;
   final bool miniMatchGames;
@@ -71,6 +73,7 @@ class GameConfig {
     int? tiebreakPoints,
     int? tiebreakDifference,
     int? finalSetTiebreakPoints,
+    int? finalSetTiebreakDifference,
     bool? useFinalSetTiebreak,
     bool? withAdvantage,
     bool? miniMatchGames,
@@ -101,6 +104,8 @@ class GameConfig {
       tiebreakDifference: tiebreakDifference ?? this.tiebreakDifference,
       finalSetTiebreakPoints:
           finalSetTiebreakPoints ?? this.finalSetTiebreakPoints,
+      finalSetTiebreakDifference:
+          finalSetTiebreakDifference ?? this.finalSetTiebreakDifference,
       useFinalSetTiebreak: useFinalSetTiebreak ?? this.useFinalSetTiebreak,
       withAdvantage: withAdvantage ?? this.withAdvantage,
       miniMatchGames: miniMatchGames ?? this.miniMatchGames,
@@ -135,6 +140,7 @@ class GameConfig {
         'tiebreakPoints': tiebreakPoints,
         'tiebreakDifference': tiebreakDifference,
         'finalSetTiebreakPoints': finalSetTiebreakPoints,
+        'finalSetTiebreakDifference': finalSetTiebreakDifference,
         'useFinalSetTiebreak': useFinalSetTiebreak,
         'withAdvantage': withAdvantage,
         'miniMatchGames': miniMatchGames,
@@ -165,7 +171,9 @@ class GameConfig {
       tiebreakAt: json['tiebreakAt'] as int? ?? 6,
       tiebreakPoints: json['tiebreakPoints'] as int? ?? 7,
       tiebreakDifference: json['tiebreakDifference'] as int? ?? 2,
-      finalSetTiebreakPoints: json['finalSetTiebreakPoints'] as int? ?? 7,
+      finalSetTiebreakPoints: json['finalSetTiebreakPoints'] as int? ?? 10,
+      finalSetTiebreakDifference:
+          json['finalSetTiebreakDifference'] as int? ?? 2,
       useFinalSetTiebreak: json['useFinalSetTiebreak'] as bool? ?? true,
       withAdvantage: json['withAdvantage'] as bool? ?? true,
       miniMatchGames: json['miniMatchGames'] as bool? ?? false,

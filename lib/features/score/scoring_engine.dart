@@ -142,7 +142,7 @@ class ScoringEngine {
     }
 
     final pointsToWin = _getTiebreakPointsToWin(state);
-    final diff = config.tiebreakDifference;
+    final diff = _getTiebreakDifference(state);
     final tiebreakOver = (ta >= pointsToWin && ta - tb >= diff) ||
         (tb >= pointsToWin && tb - ta >= diff);
 
@@ -179,6 +179,13 @@ class ScoringEngine {
   int _getTiebreakPointsToWin(ScoreState state) {
     final isFinalSet = state.currentSet == config.maxSets;
     return isFinalSet ? config.finalSetTiebreakPoints : config.tiebreakPoints;
+  }
+
+  int _getTiebreakDifference(ScoreState state) {
+    final isFinalSet = state.currentSet == config.maxSets;
+    return isFinalSet
+        ? config.finalSetTiebreakDifference
+        : config.tiebreakDifference;
   }
 
   ScoreState _finishSet(ScoreState state, int ga, int gb, bool setWinnerIsA,
