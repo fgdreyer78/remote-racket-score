@@ -219,6 +219,9 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
       ref.read(scoreStateProvider.notifier).setServer(serveIsA);
     }
 
+    // Marca a partida como iniciada para poder salvar como ongoing
+    ref.read(scoreStateProvider.notifier).markMatchStarted();
+
     // Navega para o placar, removendo todas as telas anteriores
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const ScoreScreen()),

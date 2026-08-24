@@ -20,6 +20,7 @@ class ScoreState {
     this.history = const [],
     this.matchOver = false,
     this.winnerIsA,
+    this.matchStarted = false,
   });
 
   final int pointsA;
@@ -43,6 +44,10 @@ class ScoreState {
   final bool matchOver;
   final bool? winnerIsA;
 
+  /// Indica se a partida já foi iniciada (coin-toss concluído).
+  /// Usado para salvar a partida como "em andamento" mesmo sem pontuação.
+  final bool matchStarted;
+
   ScoreState copyWith({
     int? pointsA,
     int? pointsB,
@@ -62,6 +67,7 @@ class ScoreState {
     List<ScoreState>? history,
     bool? matchOver,
     bool? winnerIsA,
+    bool? matchStarted,
   }) {
     return ScoreState(
       pointsA: pointsA ?? this.pointsA,
@@ -84,6 +90,7 @@ class ScoreState {
       history: history ?? this.history,
       matchOver: matchOver ?? this.matchOver,
       winnerIsA: winnerIsA ?? this.winnerIsA,
+      matchStarted: matchStarted ?? this.matchStarted,
     );
   }
 
@@ -105,6 +112,7 @@ class ScoreState {
         'serverIsA': serverIsA,
         'matchOver': matchOver,
         'winnerIsA': winnerIsA,
+        'matchStarted': matchStarted,
       };
 
   factory ScoreState.fromJson(Map<String, dynamic> json) {
@@ -134,6 +142,7 @@ class ScoreState {
       serverIsA: json['serverIsA'] as bool? ?? true,
       matchOver: json['matchOver'] as bool? ?? false,
       winnerIsA: json['winnerIsA'] as bool?,
+      matchStarted: json['matchStarted'] as bool? ?? false,
     );
   }
 }

@@ -60,9 +60,10 @@ class OngoingMatchesNotifier
     final config = _ref.read(gameConfigProvider).valueOrNull;
     if (config == null) return;
 
-    // Não salva se não houve nenhum ponto ou se a partida já terminou
+    // Não salva se a partida já terminou ou não foi iniciada
     if (score.matchOver) return;
-    final hasProgress = score.setsA > 0 ||
+    final hasProgress = score.matchStarted ||
+        score.setsA > 0 ||
         score.setsB > 0 ||
         score.gamesA > 0 ||
         score.gamesB > 0 ||

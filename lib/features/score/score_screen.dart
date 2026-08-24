@@ -213,9 +213,11 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       }
 
       if (isUndo) {
-        // Flash vermelho ao desfazer — mesmo duration/frequency das configurações
+        // Flash vermelho ao desfazer — pisca o lado do jogador que perdeu o ponto
         setState(() => _undoFlashActive = true);
-        _startFlash(true, config);
+        final undoScorerIsA =
+            ref.read(scoreStateProvider.notifier).lastScorerIsA;
+        _startFlash(undoScorerIsA, config);
       } else if (pointAdded) {
         // Usa diretamente quem fez o ponto — sem detecção por estado
         final scorerIsA = ref.read(scoreStateProvider.notifier).lastScorerIsA;
@@ -446,7 +448,8 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   Future<void> _goHome(BuildContext context) async {
     final loc = AppConfig.of(context);
     final score = ref.read(scoreStateProvider);
-    final hasStarted = score.setsA > 0 ||
+    final hasStarted = score.matchStarted ||
+        score.setsA > 0 ||
         score.setsB > 0 ||
         score.gamesA > 0 ||
         score.gamesB > 0;

@@ -5,13 +5,45 @@ import '../../core/app_theme.dart';
 import '../../core/tts_dictionary.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/tts_config_provider.dart';
+import '../../providers/tts_provider.dart';
 
 /// Tela de configuração de idioma para interface e locução.
-class LanguageSettingsScreen extends ConsumerWidget {
+class LanguageSettingsScreen extends ConsumerStatefulWidget {
   const LanguageSettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LanguageSettingsScreen> createState() =>
+      _LanguageSettingsScreenState();
+}
+
+class _LanguageSettingsScreenState
+    extends ConsumerState<LanguageSettingsScreen> {
+  List<Map<String, String>> _availableVoices = [];
+  bool _loadingVoices = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadVoices();
+    });
+  }
+
+  Future<void> _loadVoices() async {
+    final ttsConfig = ref.read(ttsConfigProvider);
+    setState(() => _loadingVoices = true);
+    final tts = ref.read(ttsServiceProvider);
+    final voices = await tts.getAvailableVoices(ttsConfig.languageCode);
+    if (mounted) {
+      setState(() {
+        _availableVoices = voices;
+        _loadingVoices = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     const neonColor = Color(0xFFCCFF00);
     final ttsConfig = ref.watch(ttsConfigProvider);
     final currentLocale = ref.watch(localeProvider);
@@ -91,13 +123,71 @@ class LanguageSettingsScreen extends ConsumerWidget {
               onChanged: (code) {
                 if (code != null) {
                   ref.read(ttsConfigProvider.notifier).setLanguage(code);
+                  _loadVoices();
                 }
               },
             ),
           ),
           const Divider(color: Colors.white12, height: 1),
 
-          // ================= SESSÃO 3: PERSONALIZAR FRASES =================
+          // ================= SESSÃO 3: VOZ DA LOCUÇÃO =================
+          _buildHeader(
+              'Voz da Locução', 'Escolha a voz do narrador', neonColor),
+          if (_loadingVoices)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: CircularProgressIndicator(color: AppTheme.primary),
+              ),
+            )
+          else ...[
+            // Opção padrão (automática)
+            RadioListTile<String?>(
+              value: null,
+              groupValue: ttsConfig.voiceName,
+              activeColor: neonColor,
+              title: const Text('Padrão (automática)',
+                  style: TextStyle(color: AppTheme.onSurface)),
+              subtitle: const Text('Seleciona voz masculina automaticamente',
+                  style: TextStyle(color: Colors.white54, fontSize: 12)),
+              onChanged: (v) {
+                ref.read(ttsConfigProvider.notifier).setVoice(null);
+                _applyVoice(null);
+              },
+            ),
+            if (_availableVoices.isNotEmpty)
+              const Divider(color: Colors.white12, height: 1),
+            for (final voice in _availableVoices)
+              RadioListTile<String?>(
+                value: voice['name'],
+                groupValue: ttsConfig.voiceName,
+                activeColor: neonColor,
+                title: Text(
+                  _voiceDisplayName(voice),
+                  style: const TextStyle(color: AppTheme.onSurface),
+                ),
+                subtitle: voice['gender']!.isNotEmpty
+                    ? Text(voice['gender']!,
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 12))
+                    : null,
+                onChanged: (v) {
+                  ref.read(ttsConfigProvider.notifier).setVoice(v);
+                  _applyVoice(v);
+                },
+              ),
+            if (_availableVoices.isEmpty && !_loadingVoices)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Nenhuma voz adicional encontrada para este idioma.',
+                  style: TextStyle(color: Colors.white54, fontSize: 13),
+                ),
+              ),
+          ],
+          const Divider(color: Colors.white12, height: 1),
+
+          // ================= SESSÃO 4: PERSONALIZAR FRASES =================
           _buildHeader('Personalizar Frases',
               'Edite o que é falado em cada situação', neonColor),
           Padding(
@@ -139,6 +229,21 @@ class LanguageSettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _voiceDisplayName(Map<String, String> voice) {
+    final name = voice['name'] ?? '';
+    final gender = voice['gender'] ?? '';
+    if (gender.isNotEmpty) {
+      return '$name ($gender)';
+    }
+    return name;
+  }
+
+  Future<void> _applyVoice(String? voiceName) async {
+    final ttsConfig = ref.read(ttsConfigProvider);
+    final tts = ref.read(ttsServiceProvider);
+    await tts.setVoiceByName(voiceName, ttsConfig.languageCode);
   }
 
   Widget _buildHeader(String title, String subtitle, Color neonColor) {

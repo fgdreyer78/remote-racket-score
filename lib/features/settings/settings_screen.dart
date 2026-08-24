@@ -77,12 +77,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _presetLayoutModeIndex = -1;
   }
 
-  bool _formInitialized = false;
   int _formKey = 0;
+  String? _lastConfigName;
 
   void _initFromConfig(GameConfig? config) {
-    if (config == null || _formInitialized) return;
-    _formInitialized = true;
+    if (config == null) return;
+    // Reinicializa se a config mudou (ex: preset aplicado externamente)
+    if (_lastConfigName == config.sportName && _formKey > 0) return;
+    _lastConfigName = config.sportName;
 
     _sportController.text = config.sportName;
     setState(() {
@@ -180,7 +182,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   'Game termina em 40-40 sem vantagem — próximo ponto fecha',
                   style: TextStyle(color: Colors.white54, fontSize: 12)),
               value: !_withAdvantage,
-              onChanged: (v) => setState(() => _withAdvantage = !v),
+              onChanged: (v) {
+                setState(() => _withAdvantage = !v);
+                _autoSave();
+              },
               activeColor: AppTheme.primary,
             ),
             const SizedBox(height: 16),
@@ -201,7 +206,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: const Text('Tiebreak como set decisivo',
                   style: TextStyle(color: AppTheme.onSurface)),
               value: _useFinalSetTiebreak,
-              onChanged: (v) => setState(() => _useFinalSetTiebreak = v),
+              onChanged: (v) {
+                setState(() => _useFinalSetTiebreak = v);
+                _autoSave();
+              },
               activeColor: AppTheme.primary,
             ),
             if (_useFinalSetTiebreak) ...[
@@ -240,7 +248,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: const Text('Aviso sonoro "Tempo" (games ímpares e sets)',
                   style: TextStyle(color: AppTheme.onSurface)),
               value: _timeWarningSound,
-              onChanged: (v) => setState(() => _timeWarningSound = v),
+              onChanged: (v) {
+                setState(() => _timeWarningSound = v);
+                _autoSave();
+              },
               activeColor: AppTheme.primary,
             ),
             const SizedBox(height: 24),
@@ -255,7 +266,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: const Text('Ativar flash visual',
                   style: TextStyle(color: AppTheme.onSurface)),
               value: _pointFlashEnabled,
-              onChanged: (v) => setState(() => _pointFlashEnabled = v),
+              onChanged: (v) {
+                setState(() => _pointFlashEnabled = v);
+                _autoSave();
+              },
               activeColor: AppTheme.primary,
             ),
             if (_pointFlashEnabled) ...[
@@ -278,7 +292,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: const Text('Salvar automaticamente ao fim da partida',
                   style: TextStyle(color: AppTheme.onSurface)),
               value: _autoSaveToHistory,
-              onChanged: (v) => setState(() => _autoSaveToHistory = v),
+              onChanged: (v) {
+                setState(() => _autoSaveToHistory = v);
+                _autoSave();
+              },
               activeColor: AppTheme.primary,
             ),
             if (_autoSaveToHistory)
@@ -310,6 +327,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onChanged: (value) {
                 if (value == null) return;
                 setState(() => _layoutMode = value);
+                _autoSave();
               },
             ),
 
@@ -323,7 +341,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   'Impedir alterações nas configurações enquanto a partida está em andamento',
                   style: TextStyle(color: Colors.white54, fontSize: 12)),
               value: _lockSettingsDuringMatch,
-              onChanged: (v) => setState(() => _lockSettingsDuringMatch = v),
+              onChanged: (v) {
+                setState(() => _lockSettingsDuringMatch = v);
+                _autoSave();
+              },
               activeColor: AppTheme.primary,
             ),
 
@@ -571,6 +592,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             final parsed = int.tryParse(text);
             if (parsed != null && parsed >= min) {
               setState(() => onSet(parsed));
+              _autoSave();
             }
           },
         ),
@@ -590,16 +612,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  void _save() {
+  /// Salva a configuração atual no provider (auto-aplica).
+  void _autoSave() {
     final name = _sportController.text.trim().isEmpty
         ? 'Configuração da partida'
         : _sportController.text.trim();
-    // Preserva nomes dos jogadores atuais
     final currentConfig = ref.read(gameConfigProvider).valueOrNull;
-    final config = GameConfig(
+    if (currentConfig == null) return;
+    final config = currentConfig.copyWith(
       sportName: name,
-      playerAName: currentConfig?.playerAName ?? 'Time A',
-      playerBName: currentConfig?.playerBName ?? 'Time B',
       gamesToWinSet: _gamesToWinSet,
       minGameDifference: _minGameDifference,
       maxSets: _maxSets,
@@ -610,8 +631,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       finalSetTiebreakDifference: _finalSetTiebreakDifference,
       useFinalSetTiebreak: _useFinalSetTiebreak,
       withAdvantage: _withAdvantage,
-      miniMatchGames: false,
-      miniMatchGamesCount: 3,
       serveClockSeconds: _serveClockSeconds,
       breakBetweenOddGamesSeconds: _breakBetweenOddGamesSeconds,
       breakBetweenEvenGamesSeconds: _breakBetweenEvenGamesSeconds,
@@ -626,8 +645,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       lockSettingsDuringMatch: _lockSettingsDuringMatch,
     );
     ref.read(gameConfigProvider.notifier).updateConfig(config);
+  }
+
+  void _save() {
+    _autoSave();
 
     // Preset overrides
+    final name = _sportController.text.trim().isEmpty
+        ? 'Configuração da partida'
+        : _sportController.text.trim();
+    final config = ref.read(gameConfigProvider).valueOrNull;
+    if (config == null) return;
+
     final overrideTtsCode = _ttsLanguageCodeFromIndex(_presetTtsLanguageIndex);
     final overrideLayout =
         _presetLayoutModeIndex >= 0 ? _presetLayoutModeIndex : null;

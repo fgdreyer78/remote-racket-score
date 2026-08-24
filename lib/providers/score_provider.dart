@@ -141,6 +141,23 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
     if (_events.isNotEmpty) {
       _events.removeLast();
     }
+
+    // Determina qual jogador perdeu o ponto no undo (para o flash vermelho)
+    final prevState = state.history.last;
+    if (state.isTiebreak || prevState.isTiebreak) {
+      final prevTotal = prevState.tiebreakPointsA + prevState.tiebreakPointsB;
+      final currTotal = state.tiebreakPointsA + state.tiebreakPointsB;
+      if (currTotal > prevTotal) {
+        _lastScorerIsA = state.tiebreakPointsA > prevState.tiebreakPointsA;
+      }
+    } else {
+      final prevTotal = prevState.pointsA + prevState.pointsB;
+      final currTotal = state.pointsA + state.pointsB;
+      if (currTotal > prevTotal) {
+        _lastScorerIsA = state.pointsA > prevState.pointsA;
+      }
+    }
+
     state = ScoringEngine(_config).undo(state);
   }
 
@@ -154,6 +171,14 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
 
   void setServer(bool isA) {
     state = state.copyWith(serverIsA: isA);
+  }
+
+  /// Marca a partida como iniciada (após coin-toss).
+  /// Permite salvar como "em andamento" mesmo sem pontuação.
+  void markMatchStarted() {
+    if (!state.matchStarted) {
+      state = state.copyWith(matchStarted: true);
+    }
   }
 
   /// Restaura um ScoreState salvo (usado ao retomar partida em andamento).

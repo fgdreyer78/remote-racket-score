@@ -1,5 +1,6 @@
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/game_config.dart';
 import '../models/score_state.dart';
@@ -14,13 +15,117 @@ class TtsService {
   }
 
   late final FlutterTts _tts;
-  String _currentLanguage = 'pt-BR';
+  String? _currentLanguage;
+  bool _languageLoaded = false;
+
+  /// Carrega o idioma salvo de SharedPreferences na primeira chamada.
+  /// Isso garante que o idioma correto seja usado desde o início,
+  /// antes mesmo do ttsConfigProvider completar o load assíncrono.
+  Future<void> _loadSavedLanguage() async {
+    if (_languageLoaded) return;
+    _languageLoaded = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('tts_language');
+      final savedVoice = prefs.getString('tts_voice');
+      if (saved != null && saved.isNotEmpty) {
+        _currentLanguage = saved;
+        await _tts.setLanguage(saved);
+        if (savedVoice != null && savedVoice.isNotEmpty) {
+          await setVoiceByName(savedVoice, saved);
+        } else {
+          await _trySetMaleVoice(saved);
+        }
+      } else {
+        _currentLanguage = 'pt-BR';
+      }
+    } catch (_) {
+      _currentLanguage = 'pt-BR';
+    }
+  }
+
+  /// Retorna as vozes disponíveis para o idioma especificado.
+  Future<List<Map<String, String>>> getAvailableVoices(
+      String languageCode) async {
+    try {
+      final voices = await _tts.getVoices;
+      if (voices == null || voices.isEmpty) return [];
+      final langPrefix = languageCode.toLowerCase().split('-').first;
+      final result = <Map<String, String>>[];
+      for (final v in voices) {
+        final map = v is Map ? Map<String, dynamic>.from(v as Map) : null;
+        if (map == null) continue;
+        final locale = map['locale']?.toString().toLowerCase() ?? '';
+        if (!locale.startsWith(langPrefix)) continue;
+        final name = map['name']?.toString() ?? map['id']?.toString() ?? '';
+        final gender =
+            (map['gender'] ?? map['voice'] ?? '').toString().toLowerCase();
+        String genderLabel = '';
+        if (gender.contains('male') ||
+            gender.contains('homem') ||
+            gender.contains('masculin')) {
+          genderLabel = 'Masculina';
+        } else if (gender.contains('female') ||
+            gender.contains('mulher') ||
+            gender.contains('femin')) {
+          genderLabel = 'Feminina';
+        }
+        result.add({
+          'name': name,
+          'locale': map['locale']?.toString() ?? languageCode,
+          'gender': genderLabel,
+        });
+      }
+      return result;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Aplica uma voz pelo nome. Se voiceName é null, auto-seleciona voz masculina.
+  Future<void> setVoiceByName(String? voiceName, String languageCode) async {
+    if (voiceName == null) {
+      await _trySetMaleVoice(languageCode);
+      return;
+    }
+    try {
+      final voices = await getAvailableVoices(languageCode);
+      for (final v in voices) {
+        if (v['name'] == voiceName) {
+          await _tts.setVoice({
+            'name': v['name']!,
+            'locale': v['locale']!,
+          });
+          return;
+        }
+      }
+      // Se não encontrou a voz, auto-seleciona
+      await _trySetMaleVoice(languageCode);
+    } catch (_) {
+      await _trySetMaleVoice(languageCode);
+    }
+  }
 
   Future<void> _ensureLanguage(String languageCode) async {
+    // Na primeira chamada, carrega o idioma salvo de SharedPreferences
+    if (!_languageLoaded) {
+      await _loadSavedLanguage();
+    }
     if (_currentLanguage == languageCode) return;
     _currentLanguage = languageCode;
     await _tts.setLanguage(languageCode);
-    await _trySetMaleVoice(languageCode);
+    // Verifica se há voz salva para este idioma
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedVoice = prefs.getString('tts_voice');
+      if (savedVoice != null && savedVoice.isNotEmpty) {
+        await setVoiceByName(savedVoice, languageCode);
+      } else {
+        await _trySetMaleVoice(languageCode);
+      }
+    } catch (_) {
+      await _trySetMaleVoice(languageCode);
+    }
   }
 
   Future<void> _trySetMaleVoice(String languageCode) async {

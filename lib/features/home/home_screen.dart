@@ -205,7 +205,8 @@ class _OngoingMatchesSection extends ConsumerWidget {
 
     final activeScore = ref.read(scoreStateProvider);
     final hasActiveInMemory = !activeScore.matchOver &&
-        (activeScore.setsA > 0 ||
+        (activeScore.matchStarted ||
+            activeScore.setsA > 0 ||
             activeScore.setsB > 0 ||
             activeScore.gamesA > 0 ||
             activeScore.gamesB > 0 ||
