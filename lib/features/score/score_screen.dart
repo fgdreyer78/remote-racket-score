@@ -16,6 +16,7 @@ import '../../providers/game_config_provider.dart';
 import '../../providers/key_event_provider.dart';
 import '../../providers/app_config_provider.dart';
 import '../../providers/locale_provider.dart';
+import '../../providers/ongoing_matches_provider.dart';
 import '../../providers/score_provider.dart';
 import '../../providers/tts_config_provider.dart';
 import '../../providers/tts_provider.dart';
@@ -42,6 +43,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   bool? _flashingIsA;
   bool _flashState = false; // true = invertido, false = normal
   Timer? _flashTimer;
+  bool _undoFlashActive = false; // flash vermelho ao desfazer
 
   // Controle de aviso sonoro: só toca em games ímpares e sets
   bool _lastClockPlayWarning = false;
@@ -150,6 +152,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         setState(() {
           _flashingIsA = null;
           _flashState = false;
+          _undoFlashActive = false;
           _gameJustEnded = false;
           _setJustEnded = false;
         });
@@ -191,6 +194,9 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
           next.tiebreakPointsA != prev.tiebreakPointsA ||
           next.tiebreakPointsB != prev.tiebreakPointsB;
 
+      // Detectar undo: history diminuiu
+      final isUndo = next.history.length < prev.history.length;
+
       // Se a partida acabou, cancelar qualquer timer em execução e não
       // iniciar novos timers.
       if (next.matchOver) {
@@ -206,7 +212,11 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         return;
       }
 
-      if (pointAdded) {
+      if (isUndo) {
+        // Flash vermelho ao desfazer — mesmo duration/frequency das configurações
+        setState(() => _undoFlashActive = true);
+        _startFlash(true, config);
+      } else if (pointAdded) {
         // Usa diretamente quem fez o ponto — sem detecção por estado
         final scorerIsA = ref.read(scoreStateProvider.notifier).lastScorerIsA;
         final gameEnded =
@@ -300,6 +310,7 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
                       clockRemaining: _clockRemaining,
                       flashingIsA: _flashingIsA,
                       flashState: _flashState,
+                      undoFlashActive: _undoFlashActive,
                       gameJustEnded: _gameJustEnded,
                       setJustEnded: _setJustEnded,
                       preGameEndPointsA: _preGameEndPointsA,
@@ -440,6 +451,11 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         score.gamesA > 0 ||
         score.gamesB > 0;
 
+    // Se a partida está em andamento, salva automaticamente como ongoing
+    if (hasStarted && !score.matchOver) {
+      await ref.read(ongoingMatchesProvider.notifier).saveCurrentMatch();
+    }
+
     // Se a partida já terminou, não precisa de confirmação.
     if (hasStarted && !score.matchOver) {
       final confirmed = await showDialog<bool>(
@@ -570,6 +586,7 @@ class _ScoreContent extends StatelessWidget {
     required this.clockRemaining,
     required this.flashingIsA,
     required this.flashState,
+    required this.undoFlashActive,
     required this.gameJustEnded,
     required this.setJustEnded,
     required this.preGameEndPointsA,
@@ -587,6 +604,7 @@ class _ScoreContent extends StatelessWidget {
   final int? clockRemaining;
   final bool? flashingIsA;
   final bool flashState;
+  final bool undoFlashActive;
   final bool gameJustEnded;
   final bool setJustEnded;
   final int preGameEndPointsA;
@@ -731,11 +749,12 @@ class _ScoreContent extends StatelessWidget {
     Color pointColorB = neonColor;
 
     if (flashingIsA != null && flashState) {
+      final flashColor = undoFlashActive ? const Color(0xFFFF4444) : neonColor;
       if (flashingIsA == true) {
-        bgA = neonColor;
+        bgA = flashColor;
         pointColorA = AppTheme.surface;
       } else {
-        bgB = neonColor;
+        bgB = flashColor;
         pointColorB = AppTheme.surface;
       }
     }

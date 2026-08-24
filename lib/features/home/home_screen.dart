@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_theme.dart';
+import '../../models/ongoing_match.dart';
 import '../../providers/app_config_provider.dart';
 import '../../providers/key_event_provider.dart';
 import '../../providers/locale_provider.dart';
+import '../../providers/ongoing_matches_provider.dart';
 import '../../providers/score_provider.dart';
 import '../button_mapping/button_mapping_screen.dart';
 import '../history/history_screen.dart';
@@ -16,28 +18,12 @@ import 'new_game_screen.dart';
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  /// Verifica se há uma partida em andamento (pelo menos 1 ponto, game ou set registrado)
-  static bool _hasActiveMatch(WidgetRef ref) {
-    final score = ref.read(scoreStateProvider);
-    if (score.matchOver) return false;
-    return score.setsA > 0 ||
-        score.setsB > 0 ||
-        score.gamesA > 0 ||
-        score.gamesB > 0 ||
-        score.pointsA > 0 ||
-        score.pointsB > 0 ||
-        score.tiebreakPointsA > 0 ||
-        score.tiebreakPointsB > 0;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Garante que o game mode está desligado no menu principal
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(keyEventServiceProvider).setGameMode(false);
     });
 
-    // Força rebuild quando o idioma muda
     ref.watch(localeProvider);
 
     const neonColor = Color(0xFFCCFF00);
@@ -55,8 +41,6 @@ class HomeScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SizedBox(height: isLandscape ? 16 : 32),
-
-                // Logo / Título
                 Column(
                   children: [
                     Icon(Icons.sports_tennis,
@@ -74,9 +58,7 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-
                 SizedBox(height: isLandscape ? 24 : 48),
-
                 _MenuButton(
                   icon: Icons.play_circle_fill,
                   label: loc.text('newGame'),
@@ -85,22 +67,8 @@ class HomeScreen extends ConsumerWidget {
                     MaterialPageRoute(builder: (_) => const NewGameScreen()),
                   ),
                 ),
-
-                // Botão "Continuar Partida" — só aparece se há jogo em andamento
-                if (_hasActiveMatch(ref)) ...[
-                  const SizedBox(height: 12),
-                  _MenuButton(
-                    icon: Icons.play_circle,
-                    label: 'Continuar Partida em Andamento',
-                    color: const Color(0xFF80FF80),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ScoreScreen()),
-                    ),
-                  ),
-                ],
-
+                const _OngoingMatchesSection(),
                 const SizedBox(height: 12),
-
                 _MenuButton(
                   icon: Icons.tune,
                   label: loc.text('presets'),
@@ -109,9 +77,7 @@ class HomeScreen extends ConsumerWidget {
                     MaterialPageRoute(builder: (_) => const SettingsScreen()),
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 _MenuButton(
                   icon: Icons.history,
                   label: loc.text('history'),
@@ -120,9 +86,7 @@ class HomeScreen extends ConsumerWidget {
                     MaterialPageRoute(builder: (_) => const HistoryScreen()),
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 _MenuButton(
                   icon: Icons.settings,
                   label: loc.text('settings'),
@@ -131,10 +95,7 @@ class HomeScreen extends ConsumerWidget {
                     MaterialPageRoute(builder: (_) => const _ConfigScreen()),
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
-                // Versão
                 const Text(
                   'v1.0',
                   textAlign: TextAlign.center,
@@ -143,7 +104,6 @@ class HomeScreen extends ConsumerWidget {
               ],
             );
 
-            // Em landscape, usa SingleChildScrollView para permitir scroll
             if (isLandscape) {
               return SingleChildScrollView(
                 padding:
@@ -157,7 +117,6 @@ class HomeScreen extends ConsumerWidget {
               );
             }
 
-            // Em portrait, mantém o layout original
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
               child: content,
@@ -213,16 +172,20 @@ class _MenuButtonState extends State<_MenuButton> {
           children: [
             Icon(widget.icon, color: fgColor, size: 28),
             const SizedBox(width: 16),
-            Text(
-              widget.label,
-              style: TextStyle(
-                color: fgColor,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.0,
+            Flexible(
+              child: Text(
+                widget.label,
+                style: TextStyle(
+                  color: fgColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.8,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.visible,
               ),
             ),
-            const Spacer(),
+            const SizedBox(width: 8),
             Icon(Icons.chevron_right,
                 color: fgColor.withValues(alpha: 0.5), size: 24),
           ],
@@ -232,7 +195,153 @@ class _MenuButtonState extends State<_MenuButton> {
   }
 }
 
-/// Tela de Configurações Gerais
+class _OngoingMatchesSection extends ConsumerWidget {
+  const _OngoingMatchesSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ongoingAsync = ref.watch(ongoingMatchesProvider);
+    final ongoing = ongoingAsync.valueOrNull ?? [];
+
+    final activeScore = ref.read(scoreStateProvider);
+    final hasActiveInMemory = !activeScore.matchOver &&
+        (activeScore.setsA > 0 ||
+            activeScore.setsB > 0 ||
+            activeScore.gamesA > 0 ||
+            activeScore.gamesB > 0 ||
+            activeScore.pointsA > 0 ||
+            activeScore.pointsB > 0 ||
+            activeScore.tiebreakPointsA > 0 ||
+            activeScore.tiebreakPointsB > 0);
+
+    if (ongoing.isEmpty && !hasActiveInMemory) {
+      return const SizedBox.shrink();
+    }
+
+    const neonColor = Color(0xFF80FF80);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 12),
+        if (hasActiveInMemory)
+          _MenuButton(
+            icon: Icons.play_circle,
+            label: 'Continuar Partida em Andamento',
+            color: neonColor,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ScoreScreen()),
+            ),
+          )
+        else if (ongoing.isNotEmpty)
+          _MenuButton(
+            icon: Icons.play_circle,
+            label: 'Partidas em Andamento',
+            color: neonColor,
+            onTap: () => _showOngoingMatches(context, ref, ongoing),
+          ),
+        if (ongoing.length > 1 && hasActiveInMemory)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: GestureDetector(
+              onTap: () => _showOngoingMatches(context, ref, ongoing),
+              child: Text(
+                '${ongoing.length} partida(s) salva(s) — toque para ver todas',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: neonColor.withValues(alpha: 0.7),
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showOngoingMatches(
+      BuildContext context, WidgetRef ref, List<OngoingMatch> matches) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceVariant,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Partidas em Andamento',
+                style: TextStyle(
+                  color: AppTheme.primary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: matches.length,
+                itemBuilder: (ctx, index) {
+                  final match = matches[index];
+                  return ListTile(
+                    leading: const Icon(Icons.sports_tennis,
+                        color: AppTheme.primary),
+                    title: Text(
+                      '${match.playerAName} vs ${match.playerBName}',
+                      style: const TextStyle(color: AppTheme.onSurface),
+                    ),
+                    subtitle: Text(
+                      match.scoreSummary,
+                      style:
+                          const TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.play_arrow,
+                              color: Color(0xFF80FF80)),
+                          tooltip: 'Retomar',
+                          onPressed: () async {
+                            Navigator.of(ctx).pop();
+                            await ref
+                                .read(ongoingMatchesProvider.notifier)
+                                .restoreMatch(match);
+                            if (context.mounted) {
+                              Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (_) => const ScoreScreen()));
+                            }
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: AppTheme.error),
+                          tooltip: 'Deletar',
+                          onPressed: () async {
+                            await ref
+                                .read(ongoingMatchesProvider.notifier)
+                                .deleteMatch(match.id);
+                            if (ctx.mounted) Navigator.of(ctx).pop();
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ConfigScreen extends ConsumerWidget {
   const _ConfigScreen();
 

@@ -7,9 +7,11 @@ import '../../models/game_config.dart';
 import '../../models/match_preset.dart';
 import '../../providers/game_config_provider.dart';
 import '../../providers/game_presets_provider.dart';
+import '../../providers/ongoing_matches_provider.dart';
 import '../../providers/player_names_provider.dart';
 import '../../providers/score_provider.dart';
 import '../score/score_screen.dart';
+import '../settings/settings_screen.dart';
 
 class NewGameScreen extends ConsumerStatefulWidget {
   const NewGameScreen({super.key});
@@ -51,7 +53,8 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
     final q = _playerAController.text;
     final other = _playerBController.text.trim();
     setState(() {
-      _suggestionsA = notifier.suggest(q, exclude: other.isEmpty ? null : other);
+      _suggestionsA =
+          notifier.suggest(q, exclude: other.isEmpty ? null : other);
     });
   }
 
@@ -60,7 +63,8 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
     final q = _playerBController.text;
     final other = _playerAController.text.trim();
     setState(() {
-      _suggestionsB = notifier.suggest(q, exclude: other.isEmpty ? null : other);
+      _suggestionsB =
+          notifier.suggest(q, exclude: other.isEmpty ? null : other);
     });
   }
 
@@ -88,14 +92,16 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
 
     if (nameA.isEmpty || nameB.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha os nomes dos dois jogadores/duplas.')),
+        const SnackBar(
+            content: Text('Preencha os nomes dos dois jogadores/duplas.')),
       );
       return;
     }
 
     if (nameA.toLowerCase() == nameB.toLowerCase()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Os nomes dos jogadores devem ser diferentes.')),
+        const SnackBar(
+            content: Text('Os nomes dos jogadores devem ser diferentes.')),
       );
       return;
     }
@@ -107,7 +113,8 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
         backgroundColor: AppTheme.surfaceVariant,
         title: const Text(
           'Iniciar partida?',
-          style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+          style:
+              TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
         ),
         content: Text(
           '$nameA  vs  $nameB\n'
@@ -117,11 +124,14 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar', style: TextStyle(color: AppTheme.onSurface)),
+            child: const Text('Cancelar',
+                style: TextStyle(color: AppTheme.onSurface)),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('OK', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
+            child: const Text('OK',
+                style: TextStyle(
+                    color: AppTheme.primary, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -130,13 +140,18 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
     if (confirmed != true || !mounted) return;
 
     // Aplica preset ou config atual com os nomes escolhidos
-    final baseConfig = _selectedPreset?.config ?? ref.read(gameConfigProvider).valueOrNull ?? const GameConfig();
+    final baseConfig = _selectedPreset?.config ??
+        ref.read(gameConfigProvider).valueOrNull ??
+        const GameConfig();
     final config = baseConfig.copyWith(playerAName: nameA, playerBName: nameB);
     await ref.read(gameConfigProvider.notifier).updateConfig(config);
 
     // Salva os nomes no histórico de autocomplete
     await ref.read(playerNamesProvider.notifier).addName(nameA);
     await ref.read(playerNamesProvider.notifier).addName(nameB);
+
+    // Salva partida em andamento atual (se houver) antes de resetar
+    await ref.read(ongoingMatchesProvider.notifier).saveCurrentMatch();
 
     // Reseta o placar
     ref.read(scoreStateProvider.notifier).reset();
@@ -161,12 +176,14 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
         backgroundColor: AppTheme.surfaceVariant,
         title: const Text(
           'Coin Toss',
-          style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+          style:
+              TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.monetization_on, color: Color(0xFFCCFF00), size: 48),
+            const Icon(Icons.monetization_on,
+                color: Color(0xFFCCFF00), size: 48),
             const SizedBox(height: 12),
             Text(
               '$winnerName ganhou o sorteio!\nEscolha:',
@@ -178,11 +195,14 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop('receive'),
-            child: const Text('Receber', style: TextStyle(color: AppTheme.onSurface)),
+            child: const Text('Receber',
+                style: TextStyle(color: AppTheme.onSurface)),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop('serve'),
-            child: const Text('Sacar', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
+            child: const Text('Sacar',
+                style: TextStyle(
+                    color: AppTheme.primary, fontWeight: FontWeight.bold)),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop('skip'),
@@ -239,7 +259,10 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
               // ---- JOGADOR A ----
               const Text(
                 'Jogador / Dupla A',
-                style: TextStyle(color: neonColor, fontWeight: FontWeight.bold, fontSize: 14),
+                style: TextStyle(
+                    color: neonColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14),
               ),
               const SizedBox(height: 6),
               TextField(
@@ -272,7 +295,10 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
               // ---- JOGADOR B ----
               const Text(
                 'Jogador / Dupla B',
-                style: TextStyle(color: neonColor, fontWeight: FontWeight.bold, fontSize: 14),
+                style: TextStyle(
+                    color: neonColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14),
               ),
               const SizedBox(height: 6),
               TextField(
@@ -305,7 +331,10 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
               // ---- PRESET ----
               const Text(
                 'Preset de Jogo',
-                style: TextStyle(color: neonColor, fontWeight: FontWeight.bold, fontSize: 14),
+                style: TextStyle(
+                    color: neonColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14),
               ),
               const SizedBox(height: 6),
 
@@ -325,16 +354,28 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
                   ),
                   child: Column(
                     children: [
-                      // Opção "Padrão"
-                      RadioListTile<MatchPreset?>(
-                        value: null,
-                        groupValue: _selectedPreset,
-                        onChanged: (v) => setState(() => _selectedPreset = v),
-                        activeColor: neonColor,
+                      // Opção "Novo Preset"
+                      ListTile(
+                        leading: Icon(Icons.add_circle_outline,
+                            color: neonColor, size: 24),
                         title: const Text(
-                          'Padrão (última configuração)',
-                          style: TextStyle(color: AppTheme.onSurface),
+                          'Novo Preset',
+                          style: TextStyle(
+                              color: AppTheme.onSurface,
+                              fontWeight: FontWeight.bold),
                         ),
+                        subtitle: const Text(
+                          'Configurar nova partida',
+                          style: TextStyle(color: Colors.white54, fontSize: 12),
+                        ),
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const SettingsScreen()),
+                          );
+                          // After returning, refresh the list by rebuilding
+                          setState(() {});
+                        },
                       ),
                       const Divider(color: Colors.white12, height: 1),
                       ...presets.map((preset) => Column(
@@ -342,15 +383,18 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
                               RadioListTile<MatchPreset?>(
                                 value: preset,
                                 groupValue: _selectedPreset,
-                                onChanged: (v) => setState(() => _selectedPreset = v),
+                                onChanged: (v) =>
+                                    setState(() => _selectedPreset = v),
                                 activeColor: neonColor,
                                 title: Text(
                                   preset.name,
-                                  style: const TextStyle(color: AppTheme.onSurface),
+                                  style: const TextStyle(
+                                      color: AppTheme.onSurface),
                                 ),
                                 subtitle: Text(
                                   '${preset.config.gamesToWinSet} games · melhor de ${preset.config.maxSets} sets',
-                                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                                  style: const TextStyle(
+                                      color: Colors.white54, fontSize: 12),
                                 ),
                               ),
                               if (preset != presets.last)
@@ -369,13 +413,17 @@ class _NewGameScreenState extends ConsumerState<NewGameScreen> {
                 icon: const Icon(Icons.play_arrow),
                 label: const Text(
                   'JOGAR',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5),
                 ),
                 style: FilledButton.styleFrom(
                   backgroundColor: neonColor,
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
 
@@ -410,12 +458,14 @@ class _SuggestionList extends StatelessWidget {
               (name) => InkWell(
                 onTap: () => onSelect(name),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(
                     children: [
                       const Icon(Icons.person, color: Colors.white38, size: 18),
                       const SizedBox(width: 10),
-                      Text(name, style: const TextStyle(color: AppTheme.onSurface)),
+                      Text(name,
+                          style: const TextStyle(color: AppTheme.onSurface)),
                     ],
                   ),
                 ),

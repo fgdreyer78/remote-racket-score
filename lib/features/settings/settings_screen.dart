@@ -561,8 +561,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final name = _sportController.text.trim().isEmpty
         ? 'Configuração da partida'
         : _sportController.text.trim();
+    // Preserva nomes dos jogadores atuais
+    final currentConfig = ref.read(gameConfigProvider).valueOrNull;
     final config = GameConfig(
       sportName: name,
+      playerAName: currentConfig?.playerAName ?? 'Time A',
+      playerBName: currentConfig?.playerBName ?? 'Time B',
       gamesToWinSet: _gamesToWinSet,
       minGameDifference: _minGameDifference,
       maxSets: _maxSets,

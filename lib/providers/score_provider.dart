@@ -155,4 +155,12 @@ class ScoreNotifier extends StateNotifier<ScoreState> {
   void setServer(bool isA) {
     state = state.copyWith(serverIsA: isA);
   }
+
+  /// Restaura um ScoreState salvo (usado ao retomar partida em andamento).
+  void loadFromState(ScoreState savedState) {
+    _matchSaved = false;
+    _matchStart = DateTime.now();
+    _events.clear();
+    state = savedState;
+  }
 }

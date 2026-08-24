@@ -1,4 +1,5 @@
 /// Estado completo do placar: pontos no game, games no set, sets, sacador, histórico para undo.
+
 class ScoreState {
   const ScoreState({
     this.pointsA = 0,
@@ -83,6 +84,56 @@ class ScoreState {
       history: history ?? this.history,
       matchOver: matchOver ?? this.matchOver,
       winnerIsA: winnerIsA ?? this.winnerIsA,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'pointsA': pointsA,
+        'pointsB': pointsB,
+        'gamesA': gamesA,
+        'gamesB': gamesB,
+        'setsA': setsA,
+        'setsB': setsB,
+        'previousSetsGamesA': previousSetsGamesA,
+        'previousSetsGamesB': previousSetsGamesB,
+        'previousSetsTiebreakPointsA': previousSetsTiebreakPointsA,
+        'previousSetsTiebreakPointsB': previousSetsTiebreakPointsB,
+        'currentSet': currentSet,
+        'isTiebreak': isTiebreak,
+        'tiebreakPointsA': tiebreakPointsA,
+        'tiebreakPointsB': tiebreakPointsB,
+        'serverIsA': serverIsA,
+        'matchOver': matchOver,
+        'winnerIsA': winnerIsA,
+      };
+
+  factory ScoreState.fromJson(Map<String, dynamic> json) {
+    return ScoreState(
+      pointsA: json['pointsA'] as int? ?? 0,
+      pointsB: json['pointsB'] as int? ?? 0,
+      gamesA: json['gamesA'] as int? ?? 0,
+      gamesB: json['gamesB'] as int? ?? 0,
+      setsA: json['setsA'] as int? ?? 0,
+      setsB: json['setsB'] as int? ?? 0,
+      previousSetsGamesA:
+          (json['previousSetsGamesA'] as List<dynamic>?)?.cast<int>() ?? [],
+      previousSetsGamesB:
+          (json['previousSetsGamesB'] as List<dynamic>?)?.cast<int>() ?? [],
+      previousSetsTiebreakPointsA:
+          (json['previousSetsTiebreakPointsA'] as List<dynamic>?)
+                  ?.cast<int>() ??
+              [],
+      previousSetsTiebreakPointsB:
+          (json['previousSetsTiebreakPointsB'] as List<dynamic>?)
+                  ?.cast<int>() ??
+              [],
+      currentSet: json['currentSet'] as int? ?? 1,
+      isTiebreak: json['isTiebreak'] as bool? ?? false,
+      tiebreakPointsA: json['tiebreakPointsA'] as int? ?? 0,
+      tiebreakPointsB: json['tiebreakPointsB'] as int? ?? 0,
+      serverIsA: json['serverIsA'] as bool? ?? true,
+      matchOver: json['matchOver'] as bool? ?? false,
+      winnerIsA: json['winnerIsA'] as bool?,
     );
   }
 }
