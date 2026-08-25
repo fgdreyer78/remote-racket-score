@@ -39,19 +39,15 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
 
   bool _isMenuVisible = true;
 
-  // Flash visual: qual jogador está piscando (null = nenhum)
   bool? _flashingIsA;
-  bool _flashState = false; // true = invertido, false = normal
+  bool _flashState = false;
   Timer? _flashTimer;
-  bool _undoFlashActive = false; // flash vermelho ao desfazer
+  bool _undoFlashActive = false;
 
-  // Controle de aviso sonoro: só toca em games ímpares e sets
   bool _lastClockPlayWarning = false;
 
-  // Flags para manter placar visível durante flash ao fechar game/set
   bool _gameJustEnded = false;
   bool _setJustEnded = false;
-  // Pontos do momento em que o game/set foi fechado (para exibir durante flash)
   int _preGameEndPointsA = 0;
   int _preGameEndPointsB = 0;
   int _preGameEndTbPointsA = 0;
@@ -60,11 +56,9 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
   @override
   void initState() {
     super.initState();
-    // Carrega o primeiro anúncio intersticial
     AdMobService.instance.loadAd();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(keyEventServiceProvider).setGameMode(true);
-      // Força landscape se layoutMode == 1
       final config = ref.read(gameConfigProvider).valueOrNull;
       if (config != null && config.layoutMode == 1) {
         SystemChrome.setPreferredOrientations([
@@ -81,7 +75,6 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     _flashTimer?.cancel();
     AdMobService.instance.dispose();
     ref.read(keyEventServiceProvider).setGameMode(false);
-    // Restaura orientação ao sair
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
@@ -112,7 +105,6 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
           final ttsConfig = ref.read(ttsConfigProvider);
           ref.read(ttsServiceProvider).speakTimeWarning(config, ttsConfig);
         }
-        // Encadear próximo timer se houver callback
         if (_onClockComplete != null) {
           final callback = _onClockComplete;
           _onClockComplete = null;
@@ -194,11 +186,8 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
           next.tiebreakPointsA != prev.tiebreakPointsA ||
           next.tiebreakPointsB != prev.tiebreakPointsB;
 
-      // Detectar undo: history diminuiu
       final isUndo = next.history.length < prev.history.length;
 
-      // Se a partida acabou, cancelar qualquer timer em execução e não
-      // iniciar novos timers.
       if (next.matchOver) {
         _clockTimer?.cancel();
         _clockTimer = null;
@@ -208,18 +197,15 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
             _clockLabel = '';
           });
         }
-        // Não iniciar nenhum timer se a partida acabou.
         return;
       }
 
       if (isUndo) {
-        // Flash vermelho ao desfazer — pisca o lado do jogador que perdeu o ponto
         setState(() => _undoFlashActive = true);
         final undoScorerIsA =
             ref.read(scoreStateProvider.notifier).lastScorerIsA;
         _startFlash(undoScorerIsA, config);
       } else if (pointAdded) {
-        // Usa diretamente quem fez o ponto — sem detecção por estado
         final scorerIsA = ref.read(scoreStateProvider.notifier).lastScorerIsA;
         final gameEnded =
             (next.gamesA + next.gamesB) > (prev.gamesA + prev.gamesB) &&
@@ -244,7 +230,6 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
       final shouldRestOdd = gameEnded && isOddGame && !isFirstGame;
       final shouldRestEven = gameEnded && !isOddGame && !isFirstGame;
 
-      // Função auxiliar para iniciar timer de saque após intervalo
       VoidCallback? serveClockAfterBreak;
       if (config.serveClockSeconds > 0) {
         serveClockAfterBreak = () {
@@ -255,7 +240,6 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         };
       }
 
-      // Exibe anúncio intersticial quando um set termina
       if (setEnded) {
         AdMobService.instance.showAdIfAvailable();
       }
@@ -292,15 +276,16 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
             ? const Center(child: CircularProgressIndicator(color: neonColor))
             : Stack(
                 children: [
-                  // Anúncio banner na parte inferior da tela
-                  const Positioned(
+                  Positioned(
                     bottom: 0,
                     left: 0,
                     right: 0,
                     child: SafeArea(
                       child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: BottomBannerAd(),
+                        alignment: _isPortrait(context)
+                            ? Alignment.bottomCenter
+                            : Alignment.bottomLeft,
+                        child: const BottomBannerAd(),
                       ),
                     ),
                   ),
@@ -424,6 +409,10 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
     );
   }
 
+  bool _isPortrait(BuildContext context) {
+    return MediaQuery.of(context).orientation == Orientation.portrait;
+  }
+
   void _openSettings(BuildContext context) async {
     ref.read(keyEventServiceProvider).setGameMode(false);
     await Navigator.of(context)
@@ -454,12 +443,10 @@ class _ScoreScreenState extends ConsumerState<ScoreScreen> {
         score.gamesA > 0 ||
         score.gamesB > 0;
 
-    // Se a partida está em andamento, salva automaticamente como ongoing
     if (hasStarted && !score.matchOver) {
       await ref.read(ongoingMatchesProvider.notifier).saveCurrentMatch();
     }
 
-    // Se a partida já terminou, não precisa de confirmação.
     if (hasStarted && !score.matchOver) {
       final confirmed = await showDialog<bool>(
         context: context,
@@ -618,44 +605,22 @@ class _ScoreContent extends StatelessWidget {
   final VoidCallback onPointB;
   final VoidCallback onUndo;
 
-  Widget _buildBigClockPortrait(Color neonColor) {
+  Widget _buildBigClockPortrait(
+      Color neonColor, double nameSize, double baseSize) {
     if (clockRemaining == null) return const SizedBox.shrink();
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(clockLabel.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
                 color: Colors.white,
-                fontSize: 36,
+                fontSize: nameSize,
                 fontWeight: FontWeight.w500)),
         Text('$clockRemaining',
             style: TextStyle(
                 color: neonColor,
                 fontWeight: FontWeight.bold,
-                fontSize: 80,
-                height: 1.1)),
-      ],
-    );
-  }
-
-  Widget _buildBigClockLandscape(Color neonColor) {
-    if (clockRemaining == null) return const SizedBox.shrink();
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(clockLabel.toUpperCase(),
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 36,
-                fontWeight: FontWeight.w500)),
-        const SizedBox(width: 24),
-        Text('$clockRemaining',
-            style: TextStyle(
-                color: neonColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 80,
+                fontSize: baseSize,
                 height: 1.1)),
       ],
     );
@@ -701,12 +666,9 @@ class _ScoreContent extends StatelessWidget {
             score.gamesB > 0 ||
             score.setsA > 0 ||
             score.setsB > 0);
-    // Quando um game ou set acaba de ser fechado, os pontos zeram mas queremos
-    // manter o placar visível durante o flash para mostrar quem fez o ponto.
     final showScoreDuringFlash =
         flashingIsA != null && (gameJustEnded || setJustEnded);
 
-    // Durante flash de game/set, usa os pontos que estavam ANTES do reset
     if (showScoreDuringFlash) {
       if (score.isTiebreak) {
         pA = '$preGameEndTbPointsA';
@@ -762,194 +724,362 @@ class _ScoreContent extends StatelessWidget {
       }
     }
 
-    // Calcula tamanhos dinamicamente com base no espaço disponível da tela.
-    // Os números usam 90% da largura (10% de respiro) e os nomes 25% dos números.
     final screenW = MediaQuery.of(context).size.width;
-    final numColumns = hasPoints ? 2 : 1;
+    final screenH = MediaQuery.of(context).size.height;
 
     double baseSize;
-    double nameSize;
-    double spacing;
+    double nameFontSize;
+    double scoreGap;
 
-    // Usa a mesma fórmula para ambas orientações: 90% da largura da tela
-    // dividido pelo número de colunas de números. O FittedBox cuida de
-    // escalar tudo proporcionalmente para caber no espaço disponível.
-    baseSize = (screenW * 0.9) / numColumns;
-    nameSize = baseSize * 0.25;
-    spacing = baseSize * 0.05;
-
-    Widget content;
     if (isPortrait) {
-      content = Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            height: 160,
-            child: clockRemaining != null
-                ? _buildBigClockPortrait(neonColor)
-                : null,
-          ),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onPointA,
-            onLongPress: onUndo,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 60),
-              decoration: BoxDecoration(
-                  color: bgA, borderRadius: BorderRadius.circular(8)),
-              child: _buildPlayer(
-                isPortrait: isPortrait,
-                name: config.playerAName,
-                isServer: score.serverIsA,
-                previousSetsGames: score.previousSetsGamesA,
-                previousSetsTbPts: score.previousSetsTiebreakPointsA,
-                games: score.gamesA,
-                points: pA,
-                hasSets: hasSets,
-                hasGames: hasGames,
-                hasPoints: hasPoints,
-                neonColor: pointColorA,
-                whiteColor: flashingIsA == true && flashState
-                    ? AppTheme.surface
-                    : whiteColor,
-                grayColor: flashingIsA == true && flashState
-                    ? AppTheme.surface
-                    : grayColor,
-                baseSize: baseSize,
-                nameSize: nameSize,
-                spacing: spacing,
-              ),
-            ),
-          ),
-          SizedBox(height: spacing * 3.2),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onPointB,
-            onLongPress: onUndo,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 60),
-              decoration: BoxDecoration(
-                  color: bgB, borderRadius: BorderRadius.circular(8)),
-              child: _buildPlayer(
-                isPortrait: isPortrait,
-                name: config.playerBName,
-                isServer: !score.serverIsA,
-                previousSetsGames: score.previousSetsGamesB,
-                previousSetsTbPts: score.previousSetsTiebreakPointsB,
-                games: score.gamesB,
-                points: pB,
-                hasSets: hasSets,
-                hasGames: hasGames,
-                hasPoints: hasPoints,
-                neonColor: pointColorB,
-                whiteColor: flashingIsA == false && flashState
-                    ? AppTheme.surface
-                    : whiteColor,
-                grayColor: flashingIsA == false && flashState
-                    ? AppTheme.surface
-                    : grayColor,
-                baseSize: baseSize,
-                nameSize: nameSize,
-                spacing: spacing,
-              ),
-            ),
-          ),
-        ],
-      );
+      // ─── PORTRAIT ───
+      final availableH = screenH - 50;
+      baseSize = availableH * 0.25;
+      nameFontSize = availableH * 0.05;
+      scoreGap = availableH * 0.05;
     } else {
-      content = Stack(
-        alignment: Alignment.center,
-        children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+      // ─── LANDSCAPE — Proporções EXATAS baseadas em screenH ───
+      final marginH = screenH * 0.05; // 5% left/right margins
+      final nameBoxH = screenH * 0.30; // 30% name box height
+      final nameBoxW = screenW * 0.20; // 20% name box width
+      nameFontSize = screenH * 0.10; // 10% name font
+      final timerLabelSize = screenH * 0.10; // 10% timer label
+      final timerCounterSize = screenH * 0.12; // 12% timer counter
+      final timerTextGap = screenW * 0.05; // 5% gap between timer texts
+
+      // Score: 30% da altura, gap 5% da largura
+      scoreGap = screenW * 0.05;
+      baseSize = screenH * 0.30; // 30% score font size (FIXO)
+
+      // Verifica se os scores cabem na LARGURA e escala se necessário
+      final setCols = hasSets ? score.previousSetsGamesA.length : 0;
+      final scoresOnlyW = (setCols > 0
+              ? setCols * (baseSize * 1.3) + (setCols - 1) * scoreGap
+              : 0) +
+          (hasGames ? baseSize : 0) +
+          (hasGames && hasPoints ? scoreGap : 0) +
+          (hasPoints ? baseSize : 0);
+      final scoresStartX = marginH + nameBoxW + scoreGap;
+      final scoresAvailableW = screenW - scoresStartX - marginH;
+      if (scoresOnlyW > scoresAvailableW && scoresOnlyW > 0) {
+        baseSize =
+            scoresAvailableW / (scoresOnlyW / baseSize); // escala proporcional
+      }
+
+      // ─── MONTA O LAYOUT LANDSCAPE ───
+      final scoreFontSize = baseSize;
+
+      final playerRow = (String name, bool isServer, int games, String points,
+          Color neon, Color white, Color gray,
+          {required List<int> prevSetsGames,
+          required List<int> prevSetsTbPts}) {
+        return SizedBox(
+          height: nameBoxH,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onPointA,
-                onLongPress: onUndo,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 60),
-                  decoration: BoxDecoration(
-                      color: bgA, borderRadius: BorderRadius.circular(8)),
-                  child: _buildPlayer(
-                    isPortrait: isPortrait,
-                    name: config.playerAName,
-                    isServer: score.serverIsA,
-                    previousSetsGames: score.previousSetsGamesA,
-                    previousSetsTbPts: score.previousSetsTiebreakPointsA,
-                    games: score.gamesA,
-                    points: pA,
-                    hasSets: hasSets,
-                    hasGames: hasGames,
-                    hasPoints: hasPoints,
-                    neonColor: pointColorA,
-                    whiteColor: flashingIsA == true && flashState
-                        ? AppTheme.surface
-                        : whiteColor,
-                    grayColor: flashingIsA == true && flashState
-                        ? AppTheme.surface
-                        : grayColor,
-                    baseSize: baseSize,
-                    nameSize: nameSize,
-                    spacing: spacing,
+              // bolinha do saque (na margem de 5%)
+              SizedBox(
+                width: marginH,
+                child: Center(
+                  child: Opacity(
+                    opacity: isServer ? 1.0 : 0.0,
+                    child: Container(
+                      width: nameFontSize * 0.5,
+                      height: nameFontSize * 0.5,
+                      decoration: const BoxDecoration(
+                        color: neonColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                   ),
                 ),
               ),
-              SizedBox(height: spacing * 8),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onPointB,
-                onLongPress: onUndo,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 60),
-                  decoration: BoxDecoration(
-                      color: bgB, borderRadius: BorderRadius.circular(8)),
-                  child: _buildPlayer(
-                    isPortrait: isPortrait,
-                    name: config.playerBName,
-                    isServer: !score.serverIsA,
-                    previousSetsGames: score.previousSetsGamesB,
-                    previousSetsTbPts: score.previousSetsTiebreakPointsB,
-                    games: score.gamesB,
-                    points: pB,
-                    hasSets: hasSets,
-                    hasGames: hasGames,
-                    hasPoints: hasPoints,
-                    neonColor: pointColorB,
-                    whiteColor: flashingIsA == false && flashState
-                        ? AppTheme.surface
-                        : whiteColor,
-                    grayColor: flashingIsA == false && flashState
-                        ? AppTheme.surface
-                        : grayColor,
-                    baseSize: baseSize,
-                    nameSize: nameSize,
-                    spacing: spacing,
+              // caixa de texto do nome (20% largura, 30% altura, texto centrado)
+              SizedBox(
+                width: nameBoxW,
+                height: nameBoxH,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: nameBoxW),
+                    child: Text(
+                      name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: nameFontSize,
+                        fontWeight: FontWeight.bold,
+                        color: white,
+                      ),
+                    ),
                   ),
+                ),
+              ),
+              // gap entre nome e scores
+              SizedBox(width: scoreGap),
+              // scores
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (hasSets) ...[
+                    for (int i = 0; i < prevSetsGames.length; i++) ...[
+                      _buildPreviousSetScore(
+                        gamesA: prevSetsGames[i],
+                        gamesB: 0,
+                        tbPtsA: prevSetsTbPts.length > i ? prevSetsTbPts[i] : 0,
+                        tbPtsB: 0,
+                        neonColor: neonColor,
+                        whiteColor: white,
+                        grayColor: gray,
+                        baseSize: scoreFontSize,
+                        scoreGap: scoreGap,
+                      ),
+                      SizedBox(width: scoreGap),
+                    ],
+                  ],
+                  if (hasGames) ...[
+                    Text(
+                      '$games',
+                      style: TextStyle(
+                        fontSize: scoreFontSize,
+                        color: white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (hasPoints) SizedBox(width: scoreGap),
+                  ],
+                  if (hasPoints)
+                    Text(
+                      points,
+                      style: TextStyle(
+                        fontSize: scoreFontSize,
+                        color: neon,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      };
+
+      // Timer widget
+      Widget? timerWidget;
+      if (clockRemaining != null) {
+        timerWidget = Padding(
+          padding: EdgeInsets.only(left: marginH),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                clockLabel.toUpperCase(),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: timerLabelSize,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              SizedBox(width: timerTextGap),
+              Text(
+                '$clockRemaining',
+                style: TextStyle(
+                  color: neonColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: timerCounterSize,
+                  height: 1.1,
                 ),
               ),
             ],
           ),
-          if (clockRemaining != null)
-            Positioned.fill(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 24.0),
-                  child: _buildBigClockLandscape(neonColor),
+        );
+      }
+
+      final landscapeContent = Padding(
+        padding: EdgeInsets.only(
+          top: screenH * 0.10,
+          bottom: screenH * 0.15,
+        ),
+        child: Column(
+          children: [
+            // Jogador 1
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onPointA,
+              onLongPress: onUndo,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 60),
+                decoration: BoxDecoration(
+                  color: bgA,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: playerRow(
+                  config.playerAName,
+                  score.serverIsA,
+                  score.gamesA,
+                  pA,
+                  pointColorA,
+                  flashingIsA == true && flashState
+                      ? AppTheme.surface
+                      : whiteColor,
+                  flashingIsA == true && flashState
+                      ? AppTheme.surface
+                      : grayColor,
+                  prevSetsGames: score.previousSetsGamesA,
+                  prevSetsTbPts: score.previousSetsTiebreakPointsA,
                 ),
               ),
             ),
-        ],
+            // Gap entre jogadores (15% da altura) — timer aqui
+            Expanded(
+              child: timerWidget != null
+                  ? Align(alignment: Alignment.centerLeft, child: timerWidget)
+                  : const SizedBox.shrink(),
+            ),
+            // Jogador 2
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onPointB,
+              onLongPress: onUndo,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 60),
+                decoration: BoxDecoration(
+                  color: bgB,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: playerRow(
+                  config.playerBName,
+                  !score.serverIsA,
+                  score.gamesB,
+                  pB,
+                  pointColorB,
+                  flashingIsA == false && flashState
+                      ? AppTheme.surface
+                      : whiteColor,
+                  flashingIsA == false && flashState
+                      ? AppTheme.surface
+                      : grayColor,
+                  prevSetsGames: score.previousSetsGamesB,
+                  prevSetsTbPts: score.previousSetsTiebreakPointsB,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Stack(
+          children: [
+            Positioned.fill(child: landscapeContent),
+            if (score.matchOver && score.winnerIsA != null)
+              Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface.withOpacity(0.85),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    '${loc.text('winner')}: ${score.winnerIsA! ? config.playerAName : config.playerBName}',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          color: neonColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       );
     }
+
+    // ─── PORTRAIT ───
+    Widget content;
+    content = Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          height: 160,
+          child: clockRemaining != null
+              ? _buildBigClockPortrait(neonColor, nameFontSize, baseSize)
+              : null,
+        ),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onPointA,
+          onLongPress: onUndo,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 60),
+            decoration: BoxDecoration(
+                color: bgA, borderRadius: BorderRadius.circular(8)),
+            child: _buildPlayer(
+              name: config.playerAName,
+              isServer: score.serverIsA,
+              previousSetsGames: score.previousSetsGamesA,
+              previousSetsTbPts: score.previousSetsTiebreakPointsA,
+              games: score.gamesA,
+              points: pA,
+              hasSets: hasSets,
+              hasGames: hasGames,
+              hasPoints: hasPoints,
+              neonColor: pointColorA,
+              whiteColor: flashingIsA == true && flashState
+                  ? AppTheme.surface
+                  : whiteColor,
+              grayColor: flashingIsA == true && flashState
+                  ? AppTheme.surface
+                  : grayColor,
+              baseSize: baseSize,
+              nameFontSize: nameFontSize,
+              scoreGap: scoreGap,
+            ),
+          ),
+        ),
+        SizedBox(height: baseSize * 0.2),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onPointB,
+          onLongPress: onUndo,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 60),
+            decoration: BoxDecoration(
+                color: bgB, borderRadius: BorderRadius.circular(8)),
+            child: _buildPlayer(
+              name: config.playerBName,
+              isServer: !score.serverIsA,
+              previousSetsGames: score.previousSetsGamesB,
+              previousSetsTbPts: score.previousSetsTiebreakPointsB,
+              games: score.gamesB,
+              points: pB,
+              hasSets: hasSets,
+              hasGames: hasGames,
+              hasPoints: hasPoints,
+              neonColor: pointColorB,
+              whiteColor: flashingIsA == false && flashState
+                  ? AppTheme.surface
+                  : whiteColor,
+              grayColor: flashingIsA == false && flashState
+                  ? AppTheme.surface
+                  : grayColor,
+              baseSize: baseSize,
+              nameFontSize: nameFontSize,
+              scoreGap: scoreGap,
+            ),
+          ),
+        ),
+      ],
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Stack(
         children: [
-          // Conteúdo do placar
           Center(
             child: FittedBox(
               fit: BoxFit.contain,
@@ -959,7 +1089,6 @@ class _ScoreContent extends StatelessWidget {
               ),
             ),
           ),
-          // Texto do vencedor centralizado na tela
           if (score.matchOver && score.winnerIsA != null)
             Center(
               child: Container(
@@ -983,8 +1112,6 @@ class _ScoreContent extends StatelessWidget {
     );
   }
 
-  /// Monta o widget de um set anterior com formatação de tiebreak.
-  /// Se o set teve tiebreak, mostra o vencedor com 7 e o perdedor com 6^pontos.
   Widget _buildPreviousSetScore({
     required int gamesA,
     required int gamesB,
@@ -994,75 +1121,62 @@ class _ScoreContent extends StatelessWidget {
     required Color whiteColor,
     required Color grayColor,
     required double baseSize,
-    required double spacing,
+    required double scoreGap,
   }) {
-    final setSize = baseSize * 0.5;
-    // Se houve tiebreak (um dos valores > 0), aplica formatação especial
+    final setSize = baseSize;
     if (tbPtsA > 0 || tbPtsB > 0) {
-      // Quem ganhou mais games é o vencedor do set
       final aWon = gamesA > gamesB;
       final winnerGames = aWon ? gamesA : gamesB;
       final loserTbPts = aWon ? tbPtsB : tbPtsA;
       final loserDisplay = aWon ? gamesB : gamesA;
 
-      return SizedBox(
-        width: setSize * 1.3,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Vencedor: sempre 7
-            Text('$winnerGames',
-                style: TextStyle(
-                    fontSize: setSize,
-                    color: grayColor,
-                    fontWeight: FontWeight.bold)),
-            SizedBox(width: spacing * 0.5),
-            // Perdedor: 6^pontos
-            Padding(
-              padding: EdgeInsets.only(top: setSize * 0.13),
-              child: Text.rich(
-                TextSpan(
-                  children: [
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$winnerGames',
+              style: TextStyle(
+                  fontSize: setSize,
+                  color: grayColor,
+                  fontWeight: FontWeight.bold)),
+          SizedBox(width: scoreGap * 0.5),
+          Padding(
+            padding: EdgeInsets.only(top: setSize * 0.13),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$loserDisplay',
+                    style: TextStyle(
+                        fontSize: setSize,
+                        color: grayColor,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  if (loserTbPts > 0)
                     TextSpan(
-                      text: '$loserDisplay',
+                      text: '$loserTbPts',
                       style: TextStyle(
-                          fontSize: setSize,
+                          fontSize: setSize * 0.47,
                           color: grayColor,
                           fontWeight: FontWeight.bold),
                     ),
-                    if (loserTbPts > 0)
-                      TextSpan(
-                        text: '$loserTbPts',
-                        style: TextStyle(
-                            fontSize: setSize * 0.47,
-                            color: grayColor,
-                            fontWeight: FontWeight.bold),
-                      ),
-                  ],
-                ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
-    // Sem tiebreak: mostra os games normalmente
-    return SizedBox(
-      width: setSize * 1.1,
-      child: Center(
-        child: Text(
-          '$gamesA',
-          style: TextStyle(
-              fontSize: setSize, color: grayColor, fontWeight: FontWeight.bold),
-        ),
-      ),
+    return Text(
+      '$gamesA',
+      style: TextStyle(
+          fontSize: setSize, color: grayColor, fontWeight: FontWeight.bold),
     );
   }
 
+  /// Layout PORTRAIT: nome em cima, placar embaixo.
   Widget _buildPlayer({
-    required bool isPortrait,
     required String name,
     required bool isServer,
     required List<int> previousSetsGames,
@@ -1076,20 +1190,20 @@ class _ScoreContent extends StatelessWidget {
     required Color whiteColor,
     required Color grayColor,
     required double baseSize,
-    required double nameSize,
-    required double spacing,
+    required double nameFontSize,
+    required double scoreGap,
   }) {
     final nameRow = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Opacity(
           opacity: isServer ? 1.0 : 0.0,
-          child: Icon(Icons.circle, color: neonColor, size: nameSize * 0.4),
+          child: Icon(Icons.circle, color: neonColor, size: nameFontSize * 0.4),
         ),
-        SizedBox(width: spacing),
+        SizedBox(width: scoreGap),
         Text(name,
             style: TextStyle(
-                fontSize: nameSize,
+                fontSize: nameFontSize,
                 fontWeight: FontWeight.bold,
                 color: whiteColor)),
       ],
@@ -1102,16 +1216,16 @@ class _ScoreContent extends StatelessWidget {
           for (int i = 0; i < previousSetsGames.length; i++) ...[
             _buildPreviousSetScore(
               gamesA: previousSetsGames[i],
-              gamesB: 0, // Não aplicável aqui, mostramos só o valor do jogador
+              gamesB: 0,
               tbPtsA: previousSetsTbPts.length > i ? previousSetsTbPts[i] : 0,
               tbPtsB: 0,
               neonColor: neonColor,
               whiteColor: whiteColor,
               grayColor: grayColor,
               baseSize: baseSize,
-              spacing: spacing,
+              scoreGap: scoreGap,
             ),
-            SizedBox(width: spacing * 1.5),
+            SizedBox(width: scoreGap),
           ],
         ],
         if (hasGames) ...[
@@ -1122,7 +1236,7 @@ class _ScoreContent extends StatelessWidget {
                     color: whiteColor,
                     fontWeight: FontWeight.bold)),
           ),
-          if (hasPoints) SizedBox(width: spacing * 1.5),
+          if (hasPoints) SizedBox(width: scoreGap),
         ],
         if (hasPoints)
           Center(
@@ -1135,26 +1249,15 @@ class _ScoreContent extends StatelessWidget {
       ],
     );
 
-    if (isPortrait) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          nameRow,
-          SizedBox(height: spacing),
-          Padding(
-              padding: EdgeInsets.only(left: nameSize * 1.28),
-              child: scoresRow),
-        ],
-      );
-    } else {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(width: baseSize * 2.5, child: nameRow),
-          SizedBox(width: spacing * 3),
-          scoresRow,
-        ],
-      );
-    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        nameRow,
+        SizedBox(height: scoreGap),
+        Padding(
+            padding: EdgeInsets.only(left: nameFontSize * 1.28),
+            child: scoresRow),
+      ],
+    );
   }
 }
